@@ -1,9 +1,20 @@
 package com.example.moverconnect
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -75,9 +86,14 @@ class MainActivity : ComponentActivity() {
 
                     composable(Screen.Login.route) {
                         LoginScreen(
-                            onLogin = {
-                                // Show success message and navigate to main app
-                                // For now, just show a success message
+                            onLogin = { email, password ->
+                                if (email == "test@example.com" && password == "password123") {
+                                    navController.navigate(Screen.Dashboard.route) {
+                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                    }
+                                } else {
+                                    // Optionally show error (not implemented here)
+                                }
                             },
                             onRegister = {
                                 navController.navigate(Screen.UserType.route)
@@ -94,6 +110,14 @@ class MainActivity : ComponentActivity() {
                                 navController.popBackStack()
                             }
                         )
+                    }
+
+                    composable(Screen.Dashboard.route) {
+                        LaunchedEffect(key1 = true) {
+                            val intent = Intent(this@MainActivity, CustomerDashboardActivity::class.java)
+                            startActivity(intent)
+                            finish()
+                        }
                     }
                 }
             }

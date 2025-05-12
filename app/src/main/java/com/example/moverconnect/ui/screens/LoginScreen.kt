@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLogin: () -> Unit,
+    onLogin: (String, String) -> Unit,
     onRegister: () -> Unit,
     onForgotPassword: () -> Unit
 ) {
@@ -31,6 +31,7 @@ fun LoginScreen(
     
     var emailError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
+    var loginError by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -122,7 +123,9 @@ fun LoginScreen(
         Button(
             onClick = {
                 if (emailError == null && passwordError == null) {
-                    onLogin()
+                    onLogin(email, password)
+                } else {
+                    loginError = "Please fix the errors above."
                 }
             },
             modifier = Modifier
@@ -133,6 +136,11 @@ fun LoginScreen(
                 text = "Login",
                 fontSize = 18.sp
             )
+        }
+
+        loginError?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = it, color = MaterialTheme.colorScheme.error)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
