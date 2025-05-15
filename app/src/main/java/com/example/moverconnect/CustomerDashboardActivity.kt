@@ -2,96 +2,179 @@ package com.example.moverconnect
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
-import android.view.animation.AnimationUtils
-import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import android.widget.TextView
-import android.widget.ImageView
-import androidx.core.content.ContextCompat
-import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.card.MaterialCardView
-import com.google.android.material.imageview.ShapeableImageView
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.moverconnect.ui.theme.MoverConnectTheme
 
-class CustomerDashboardActivity : AppCompatActivity() {
-
+class CustomerDashboardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_customer_dashboard)
-
-        setupBottomNavigation()
-        setupDashboardButtons()
-        setupProfileCard()
-    }
-
-    private fun setupBottomNavigation() {
-        val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNavigation)
-        bottomNav.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.navigation_home -> true
-                R.id.navigation_requests -> {
-                    // TODO: Navigate to requests
-                    true
-                }
-                R.id.navigation_profile -> {
-                    // TODO: Navigate to profile
-                    true
-                }
-                R.id.navigation_settings -> {
-                    // TODO: Navigate to settings
-                    true
-                }
-                else -> false
+        setContent {
+            MoverConnectTheme {
+                CustomerDashboardScreen(
+                    onProfileClick = {
+                        startActivity(Intent(this, ProfileSetupActivity::class.java))
+                    },
+                    onCreateMoveRequest = {
+                        startActivity(Intent(this, CreateMoveRequestActivity::class.java))
+                    },
+                    onBrowseDrivers = {
+                        // TODO: Implement browse drivers
+                    },
+                    onMyRequests = {
+                        startActivity(Intent(this, MyRequestsActivity::class.java))
+                    }
+                )
             }
         }
     }
+}
 
-    private fun setupDashboardButtons() {
-        val createMoveButton = findViewById<MaterialCardView>(R.id.createMoveRequestButton)
-        val browseDriversButton = findViewById<MaterialCardView>(R.id.browseDriversButton)
-        val myRequestsButton = findViewById<MaterialCardView>(R.id.myRequestsButton)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CustomerDashboardScreen(
+    onProfileClick: () -> Unit,
+    onCreateMoveRequest: () -> Unit,
+    onBrowseDrivers: () -> Unit,
+    onMyRequests: () -> Unit
+) {
+    var selectedItem by remember { mutableStateOf(0) }
+    val items = listOf("Home", "Requests", "Profile", "Settings")
 
-        // Set button texts and icons
-        createMoveButton.findViewById<TextView>(R.id.buttonText).text = "Create Move Request"
-        createMoveButton.findViewById<ImageView>(R.id.buttonIcon).setImageResource(R.drawable.ic_truck)
-
-        browseDriversButton.findViewById<TextView>(R.id.buttonText).text = "Browse Drivers"
-        browseDriversButton.findViewById<ImageView>(R.id.buttonIcon).setImageResource(R.drawable.ic_search)
-
-        myRequestsButton.findViewById<TextView>(R.id.buttonText).text = "My Requests"
-        myRequestsButton.findViewById<ImageView>(R.id.buttonIcon).setImageResource(R.drawable.ic_list)
-
-        // Add click listeners with animations
-        val buttonAnimation = AnimationUtils.loadAnimation(this, R.anim.button_press)
-
-        createMoveButton.setOnClickListener { view ->
-            view.startAnimation(buttonAnimation)
-            val intent = Intent(this, CreateMoveRequestActivity::class.java)
-            startActivity(intent)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Dashboard") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        },
+        bottomBar = {
+            NavigationBar {
+                items.forEachIndexed { index, item ->
+                    NavigationBarItem(
+                        icon = {
+                            Icon(
+                                imageVector = when (index) {
+                                    0 -> Icons.Default.Home
+                                    1 -> Icons.Default.List
+                                    2 -> Icons.Default.Person
+                                    else -> Icons.Default.Settings
+                                },
+                                contentDescription = item
+                            )
+                        },
+                        label = { Text(item) },
+                        selected = selectedItem == index,
+                        onClick = { selectedItem = index }
+                    )
+                }
+            }
         }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Profile Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onProfileClick
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Profile",
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text(
+                            text = "John Doe",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Tap to edit profile",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
 
-        browseDriversButton.setOnClickListener { view ->
-            view.startAnimation(buttonAnimation)
-            Toast.makeText(this, "Browse Drivers feature coming soon!", Toast.LENGTH_SHORT).show()
-        }
+            // Dashboard Actions
+            DashboardActionCard(
+                title = "Create Move Request",
+                icon = Icons.Default.Add,
+                onClick = onCreateMoveRequest
+            )
 
-        myRequestsButton.setOnClickListener { view ->
-            view.startAnimation(buttonAnimation)
-            val intent = Intent(this, MyRequestsActivity::class.java)
-            startActivity(intent)
+            DashboardActionCard(
+                title = "Browse Drivers",
+                icon = Icons.Default.Search,
+                onClick = onBrowseDrivers
+            )
+
+            DashboardActionCard(
+                title = "My Requests",
+                icon = Icons.Default.List,
+                onClick = onMyRequests
+            )
         }
     }
+}
 
-    private fun setupProfileCard() {
-        val profileCard = findViewById<MaterialCardView>(R.id.profileCard)
-        val profileImage = findViewById<ShapeableImageView>(R.id.profileImage)
-
-        profileCard.setOnClickListener {
-            val intent = Intent(this, ProfileSetupActivity::class.java)
-            startActivity(intent)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DashboardActionCard(
+    title: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium
+            )
         }
-
-        // Set default profile image
-        profileImage.setImageResource(R.drawable.ic_profile_placeholder)
     }
 } 

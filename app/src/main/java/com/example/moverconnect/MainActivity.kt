@@ -4,24 +4,20 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
 import com.example.moverconnect.navigation.Screen
 import com.example.moverconnect.navigation.UserType
 import com.example.moverconnect.ui.screens.*
 import com.example.moverconnect.ui.theme.MoverConnectTheme
+import com.example.moverconnect.ui.screens.driver.DriverDashboardScreen
+import com.example.moverconnect.ui.screens.driver.DriverProfileSetupScreen
+import com.example.moverconnect.ui.screens.driver.BrowseRequestsScreen
+import com.example.moverconnect.ui.screens.driver.RequestDetailScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -91,6 +87,10 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(Screen.Dashboard.route) {
                                         popUpTo(Screen.Splash.route) { inclusive = true }
                                     }
+                                } else if (email == "driver@test.com" && password == "Driver123!") {
+                                    navController.navigate(Screen.DriverDashboard.route) {
+                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                    }
                                 } else {
                                     // Optionally show error (not implemented here)
                                 }
@@ -118,6 +118,31 @@ class MainActivity : ComponentActivity() {
                             startActivity(intent)
                             finish()
                         }
+                    }
+
+                    // DRIVER FLOW
+                    composable(Screen.DriverDashboard.route) {
+                        DriverDashboardScreen(
+                            onProfileClick = { navController.navigate(Screen.DriverProfileSetup.route) },
+                            onBrowseRequests = { navController.navigate(Screen.BrowseRequests.route) }
+                        )
+                    }
+                    composable(Screen.DriverProfileSetup.route) {
+                        DriverProfileSetupScreen(onSave = { navController.popBackStack() })
+                    }
+                    composable(Screen.BrowseRequests.route) {
+                        BrowseRequestsScreen(
+                            onRequestClick = { requestId ->
+                                navController.navigate(Screen.RequestDetail.createRoute(requestId))
+                            }
+                        )
+                    }
+                    composable(
+                        route = Screen.RequestDetail.route,
+                        arguments = listOf(navArgument("requestId") { type = NavType.IntType })
+                    ) { backStackEntry ->
+                        val requestId = backStackEntry.arguments?.getInt("requestId") ?: 0
+                        RequestDetailScreen(requestId = requestId)
                     }
                 }
             }
