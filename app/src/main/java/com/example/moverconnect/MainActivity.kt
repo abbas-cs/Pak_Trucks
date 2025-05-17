@@ -18,6 +18,7 @@ import com.example.moverconnect.ui.screens.driver.DriverDashboardScreen
 import com.example.moverconnect.ui.screens.driver.DriverProfileSetupScreen
 import com.example.moverconnect.ui.screens.driver.BrowseRequestsScreen
 import com.example.moverconnect.ui.screens.driver.RequestDetailScreen
+import com.example.moverconnect.SessionManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,6 +28,16 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 var selectedUserType by remember { mutableStateOf<UserType?>(null) }
 
+                // Check if we should navigate directly to login
+                val destination = intent.getStringExtra("destination")
+                LaunchedEffect(destination) {
+                    if (destination == Screen.Login.route) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Splash.route) { inclusive = true }
+                        }
+                    }
+                }
+
                 NavHost(
                     navController = navController,
                     startDestination = Screen.Splash.route
@@ -34,8 +45,29 @@ class MainActivity : ComponentActivity() {
                     composable(Screen.Splash.route) {
                         SplashScreen(
                             onSplashFinished = {
-                                navController.navigate(Screen.Welcome.route) {
-                                    popUpTo(Screen.Splash.route) { inclusive = true }
+                                val context = this@MainActivity
+                                if (SessionManager.isLoggedIn(context)) {
+                                    when (SessionManager.getUserType(context)) {
+                                        "customer" -> {
+                                            navController.navigate(Screen.Dashboard.route) {
+                                                popUpTo(Screen.Splash.route) { inclusive = true }
+                                            }
+                                        }
+                                        "driver" -> {
+                                            navController.navigate(Screen.DriverDashboard.route) {
+                                                popUpTo(Screen.Splash.route) { inclusive = true }
+                                            }
+                                        }
+                                        else -> {
+                                            navController.navigate(Screen.Welcome.route) {
+                                                popUpTo(Screen.Splash.route) { inclusive = true }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    navController.navigate(Screen.Welcome.route) {
+                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                    }
                                 }
                             }
                         )
@@ -83,6 +115,7 @@ class MainActivity : ComponentActivity() {
                     composable(Screen.Login.route) {
                         LoginScreen(
                             onLogin = { email, password ->
+                                // Check for email login
                                 if (email == "test@example.com" && password == "password123") {
                                     navController.navigate(Screen.Dashboard.route) {
                                         popUpTo(Screen.Splash.route) { inclusive = true }
@@ -91,8 +124,16 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(Screen.DriverDashboard.route) {
                                         popUpTo(Screen.Splash.route) { inclusive = true }
                                     }
-                                } else {
-                                    // Optionally show error (not implemented here)
+                                }
+                                // Check for phone number login
+                                else if (email == "03123456789" && password == "password123") {
+                                    navController.navigate(Screen.Dashboard.route) {
+                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                    }
+                                } else if (email == "03987654321" && password == "Driver123!") {
+                                    navController.navigate(Screen.DriverDashboard.route) {
+                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                    }
                                 }
                             },
                             onRegister = {
@@ -124,7 +165,13 @@ class MainActivity : ComponentActivity() {
                     composable(Screen.DriverDashboard.route) {
                         DriverDashboardScreen(
                             onProfileClick = { navController.navigate(Screen.DriverProfileSetup.route) },
-                            onBrowseRequests = { navController.navigate(Screen.BrowseRequests.route) }
+                            onBrowseRequests = { navController.navigate(Screen.BrowseRequests.route) },
+                            onLogout = {
+                                SessionManager.logout(this@MainActivity)
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.Splash.route) { inclusive = true }
+                                }
+                            }
                         )
                     }
                     composable(Screen.DriverProfileSetup.route) {

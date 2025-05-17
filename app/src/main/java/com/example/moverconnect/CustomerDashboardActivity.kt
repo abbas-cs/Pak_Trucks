@@ -16,26 +16,101 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.moverconnect.ui.theme.MoverConnectTheme
+import com.example.moverconnect.ui.screens.customer.CustomerHomeScreen
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import com.example.moverconnect.navigation.Screen
 
 class CustomerDashboardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MoverConnectTheme {
-                CustomerDashboardScreen(
-                    onProfileClick = {
-                        startActivity(Intent(this, ProfileSetupActivity::class.java))
-                    },
-                    onCreateMoveRequest = {
-                        startActivity(Intent(this, CreateMoveRequestActivity::class.java))
-                    },
-                    onBrowseDrivers = {
-                        // TODO: Implement browse drivers
-                    },
-                    onMyRequests = {
-                        startActivity(Intent(this, MyRequestsActivity::class.java))
+                var drawerOpen by remember { mutableStateOf(false) }
+                var showLogoutDialog by remember { mutableStateOf(false) }
+                val activity = this@CustomerDashboardActivity
+                val scope = rememberCoroutineScope()
+                Box(Modifier.fillMaxSize()) {
+                    CustomerHomeScreen()
+                    IconButton(
+                        onClick = { drawerOpen = true },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(16.dp)
+                    ) {
+                        Icon(Icons.Default.Menu, contentDescription = "Menu")
                     }
-                )
+                    if (drawerOpen) {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.32f))
+                                .clickable { drawerOpen = false }
+                        ) {}
+                        Box(
+                            Modifier
+                                .fillMaxHeight()
+                                .width(300.dp)
+                                .align(Alignment.CenterEnd)
+                                .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Spacer(Modifier.height(32.dp))
+                                    Text(
+                                        text = "Menu",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        modifier = Modifier.padding(bottom = 16.dp)
+                                    )
+                                    // Add more drawer items here if needed
+                                }
+                                Button(
+                                    onClick = { showLogoutDialog = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Icon(Icons.Default.Logout, contentDescription = "Logout")
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Logout")
+                                }
+                            }
+                        }
+                    }
+                    if (showLogoutDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showLogoutDialog = false },
+                            title = { Text("Logout") },
+                            text = { Text("Are you sure you want to logout?") },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    showLogoutDialog = false
+                                    SessionManager.logout(activity)
+                                    val intent = Intent(activity, MainActivity::class.java).apply {
+                                        putExtra("destination", Screen.Login.route)
+                                    }
+                                    activity.startActivity(intent)
+                                    activity.finish()
+                                }) {
+                                    Text("Yes")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showLogoutDialog = false }) {
+                                    Text("No")
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
     }

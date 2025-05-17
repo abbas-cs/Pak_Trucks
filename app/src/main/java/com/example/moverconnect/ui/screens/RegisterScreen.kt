@@ -1,25 +1,30 @@
 package com.example.moverconnect.ui.screens
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.moverconnect.navigation.UserType
-
+import kotlinx.coroutines.delay
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.shadow
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
@@ -41,162 +46,308 @@ fun RegisterScreen(
     var phoneError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
+    var showError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
 
     val scrollState = rememberScrollState()
+    var isFormValid by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(scrollState),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "Create Account",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 32.dp)
-        )
+    // Update form validity
+    LaunchedEffect(fullName, email, phone, password, confirmPassword) {
+        isFormValid = fullName.isNotBlank() && 
+                     email.isNotBlank() && 
+                     phone.isNotBlank() && 
+                     password.isNotBlank() && 
+                     confirmPassword.isNotBlank() &&
+                     fullNameError == null && 
+                     emailError == null && 
+                     phoneError == null && 
+                     passwordError == null && 
+                     confirmPasswordError == null
+    }
 
-        Text(
-            text = "Registering as ${if (userType is UserType.Customer) "Customer" else "Driver"}",
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
+    // Auto-hide error message
+    LaunchedEffect(showError) {
+        if (showError) {
+            delay(3000)
+            showError = false
+        }
+    }
 
-        OutlinedTextField(
-            value = fullName,
-            onValueChange = { 
-                fullName = it
-                fullNameError = if (it.length < 3) "Name must be at least 3 characters" else null
-            },
-            label = { Text("Full Name") },
-            isError = fullNameError != null,
-            supportingText = { fullNameError?.let { Text(it) } },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(
-                imeAction = ImeAction.Next
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = email,
-            onValueChange = { 
-                email = it
-                emailError = if (!android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches()) "Invalid email format" else null
-            },
-            label = { Text("Email") },
-            isError = emailError != null,
-            supportingText = { emailError?.let { Text(it) } },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Email,
-                imeAction = ImeAction.Next
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = phone,
-            onValueChange = { 
-                phone = it
-                phoneError = if (it.length < 10) "Invalid phone number" else null
-            },
-            label = { Text("Phone Number") },
-            isError = phoneError != null,
-            supportingText = { phoneError?.let { Text(it) } },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Phone,
-                imeAction = ImeAction.Next
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = password,
-            onValueChange = { 
-                password = it
-                passwordError = if (it.length < 6) "Password must be at least 6 characters" else null
-            },
-            label = { Text("Password") },
-            isError = passwordError != null,
-            supportingText = { passwordError?.let { Text(it) } },
-            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { showPassword = !showPassword }) {
-                    Icon(
-                        imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = if (showPassword) "Hide password" else "Show password"
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Next
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = confirmPassword,
-            onValueChange = { 
-                confirmPassword = it
-                confirmPasswordError = if (it != password) "Passwords do not match" else null
-            },
-            label = { Text("Confirm Password") },
-            isError = confirmPasswordError != null,
-            supportingText = { confirmPasswordError?.let { Text(it) } },
-            visualTransformation = if (showConfirmPassword) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
-                    Icon(
-                        imageVector = if (showConfirmPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = if (showConfirmPassword) "Hide password" else "Show password"
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done
-            )
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Button(
-            onClick = {
-                if (fullNameError == null && emailError == null && 
-                    phoneError == null && passwordError == null && 
-                    confirmPasswordError == null) {
-                    onRegister()
-                }
-            },
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
+                .fillMaxSize()
+                .padding(24.dp)
+                .verticalScroll(scrollState),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Register",
-                fontSize = 18.sp
-            )
+            // Header with animation
+            AnimatedVisibility(
+                visible = true,
+                enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(bottom = 32.dp)
+                ) {
+                    Text(
+                        text = "Create Account",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Registering as ${if (userType is UserType.Customer) "Customer" else "Driver"}",
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            // Form fields with animations
+            AnimatedVisibility(
+                visible = true,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+            ) {
+                Column {
+                    OutlinedTextField(
+                        value = fullName,
+                        onValueChange = { 
+                            fullName = it
+                            fullNameError = when {
+                                it.isBlank() -> "Name is required"
+                                it.length < 3 -> "Name must be at least 3 characters"
+                                else -> null
+                            }
+                        },
+                        label = { Text("Full Name") },
+                        isError = fullNameError != null,
+                        supportingText = { fullNameError?.let { Text(it) } },
+                        leadingIcon = {
+                            Icon(Icons.Default.Person, contentDescription = "Name")
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Next
+                        ),
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { 
+                            email = it
+                            emailError = when {
+                                it.isBlank() -> "Email is required"
+                                !android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches() -> "Invalid email format"
+                                else -> null
+                            }
+                        },
+                        label = { Text("Email") },
+                        isError = emailError != null,
+                        supportingText = { emailError?.let { Text(it) } },
+                        leadingIcon = {
+                            Icon(Icons.Default.Email, contentDescription = "Email")
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedTextField(
+                        value = phone,
+                        onValueChange = { 
+                            val filtered = it.filter { char -> char.isDigit() }
+                            if (filtered.isEmpty() || filtered.startsWith("0")) {
+                                phone = filtered
+                                phoneError = when {
+                                    filtered.isBlank() -> "Phone number is required"
+                                    filtered.length < 11 -> "Phone number must be 11 digits"
+                                    filtered.length > 11 -> "Phone number cannot exceed 11 digits"
+                                    !filtered.startsWith("0") -> "Phone number must start with 0"
+                                    else -> null
+                                }
+                            }
+                        },
+                        label = { Text("Phone Number") },
+                        isError = phoneError != null,
+                        supportingText = { phoneError?.let { Text(it) } },
+                        leadingIcon = {
+                            Icon(Icons.Default.Phone, contentDescription = "Phone")
+                        },
+                        placeholder = { Text("03XXXXXXXXX") },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Phone,
+                            imeAction = ImeAction.Next
+                        ),
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { 
+                            password = it
+                            passwordError = when {
+                                it.isBlank() -> "Password is required"
+                                it.length < 6 -> "Password must be at least 6 characters"
+                                !it.any { char -> char.isDigit() } -> "Password must contain at least one number"
+                                !it.any { char -> char.isUpperCase() } -> "Password must contain at least one uppercase letter"
+                                else -> null
+                            }
+                        },
+                        label = { Text("Password") },
+                        isError = passwordError != null,
+                        supportingText = { passwordError?.let { Text(it) } },
+                        leadingIcon = {
+                            Icon(Icons.Default.Lock, contentDescription = "Password")
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = { showPassword = !showPassword }) {
+                                Icon(
+                                    imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = if (showPassword) "Hide password" else "Show password"
+                                )
+                            }
+                        },
+                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Next
+                        ),
+                        singleLine = true
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedTextField(
+                        value = confirmPassword,
+                        onValueChange = { 
+                            confirmPassword = it
+                            confirmPasswordError = when {
+                                it.isBlank() -> "Please confirm your password"
+                                it != password -> "Passwords do not match"
+                                else -> null
+                            }
+                        },
+                        label = { Text("Confirm Password") },
+                        isError = confirmPasswordError != null,
+                        supportingText = { confirmPasswordError?.let { Text(it) } },
+                        leadingIcon = {
+                            Icon(Icons.Default.Lock, contentDescription = "Confirm Password")
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
+                                Icon(
+                                    imageVector = if (showConfirmPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = if (showConfirmPassword) "Hide password" else "Show password"
+                                )
+                            }
+                        },
+                        visualTransformation = if (showConfirmPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        singleLine = true
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Register button with animation
+            AnimatedVisibility(
+                visible = true,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+            ) {
+                Button(
+                    onClick = {
+                        if (isFormValid) {
+                            onRegister()
+                        } else {
+                            errorMessage = "Please fill all fields correctly"
+                            showError = true
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    ),
+                    enabled = isFormValid
+                ) {
+                    Text(
+                        text = "Create Account",
+                        fontSize = 18.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TextButton(onClick = onLogin) {
+                Text(
+                    text = "Already have an account? Login",
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        TextButton(onClick = onLogin) {
-            Text(
-                text = "Already have an account? Login",
-                color = MaterialTheme.colorScheme.primary
-            )
+        // Error message with animation
+        AnimatedVisibility(
+            visible = showError,
+            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 16.dp)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .shadow(8.dp, RoundedCornerShape(8.dp)),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Error,
+                        contentDescription = "Error",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = errorMessage,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
         }
     }
 } 
