@@ -115,24 +115,24 @@ class MainActivity : ComponentActivity() {
                     composable(Screen.Login.route) {
                         LoginScreen(
                             onLogin = { email, password ->
-                                // Check for email login
-                                if (email == "test@example.com" && password == "password123") {
-                                    navController.navigate(Screen.Dashboard.route) {
-                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                // The actual login is handled in LoginScreen with Firebase
+                                // Here we just handle navigation based on user type
+                                when (SessionManager.getUserType(this@MainActivity)) {
+                                    "customer" -> {
+                                        navController.navigate(Screen.Dashboard.route) {
+                                            popUpTo(Screen.Splash.route) { inclusive = true }
+                                        }
                                     }
-                                } else if (email == "driver@test.com" && password == "Driver123!") {
-                                    navController.navigate(Screen.DriverDashboard.route) {
-                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                    "driver" -> {
+                                        navController.navigate(Screen.DriverDashboard.route) {
+                                            popUpTo(Screen.Splash.route) { inclusive = true }
+                                        }
                                     }
-                                }
-                                // Check for phone number login
-                                else if (email == "03123456789" && password == "password123") {
-                                    navController.navigate(Screen.Dashboard.route) {
-                                        popUpTo(Screen.Splash.route) { inclusive = true }
-                                    }
-                                } else if (email == "03987654321" && password == "Driver123!") {
-                                    navController.navigate(Screen.DriverDashboard.route) {
-                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                    else -> {
+                                        // This shouldn't happen, but just in case
+                                        navController.navigate(Screen.Welcome.route) {
+                                            popUpTo(Screen.Splash.route) { inclusive = true }
+                                        }
                                     }
                                 }
                             },

@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,6 +33,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.coroutines.delay
+import com.example.moverconnect.auth.FirebaseAuthService
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,8 +53,13 @@ fun LoginScreen(
     var passwordError by remember { mutableStateOf<String?>(null) }
     var loginError by remember { mutableStateOf<String?>(null) }
     var showError by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var showSuccess by remember { mutableStateOf(false) }
+    var successMessage by remember { mutableStateOf("") }
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val authService = remember { FirebaseAuthService() }
 
     // Animation for error message
     val errorOffset by animateFloatAsState(
@@ -65,6 +73,14 @@ fun LoginScreen(
         if (showError) {
             delay(3000)
             showError = false
+        }
+    }
+
+    // Auto-hide success message after 2 seconds
+    LaunchedEffect(showSuccess) {
+        if (showSuccess) {
+            delay(2000)
+            showSuccess = false
         }
     }
 
@@ -210,27 +226,43 @@ fun LoginScreen(
             Button(
                 onClick = {
                     if (phoneError == null && passwordError == null) {
-                        if (useEmailLogin) {
-                            if (phoneNumber == "test@example.com" && password == "password123") {
-                                SessionManager.saveLogin(context, "customer")
+                        isLoading = true
+                        scope.launch {
+                            try {
+                                val result = if (useEmailLogin) {
+                                    authService.signInWithEmailAndPassword(phoneNumber, password)
+                                } else {
+                                    authService.signInWithPhoneNumber(phoneNumber, password)
+                                }
+
+                                result.fold(
+                                    onSuccess = { (user, userType) ->
+                                        // Save login state with the correct user type
+                                        SessionManager.saveLogin(context, userType)
+                                        
+                                        // Show success message
+                                        successMessage = "Welcome back, ${user.displayName ?: "User"}!"
+                                        showSuccess = true
+                                        
+                                        // Navigate after a short delay
+                                        delay(1500)
                                 onLogin(phoneNumber, password)
-                            } else if (phoneNumber == "driver@test.com" && password == "Driver123!") {
-                                SessionManager.saveLogin(context, "driver")
-                                onLogin(phoneNumber, password)
-                            } else {
-                                loginError = "Invalid email or password"
+                                    },
+                                    onFailure = { exception ->
+                                        loginError = when {
+                                            exception.message?.contains("no user record") == true -> "No account found with these credentials"
+                                            exception.message?.contains("password is invalid") == true -> "Invalid password"
+                                            exception.message?.contains("User type not found") == true -> "Account type not found. Please contact support."
+                                            else -> "Login failed: ${exception.message}"
+                                        }
                                 showError = true
                             }
-                        } else {
-                            if (phoneNumber == "03123456789" && password == "password123") {
-                                SessionManager.saveLogin(context, "customer")
-                                onLogin(phoneNumber, password)
-                            } else if (phoneNumber == "03987654321" && password == "Driver123!") {
-                                SessionManager.saveLogin(context, "driver")
-                                onLogin(phoneNumber, password)
-                            } else {
-                                loginError = "Invalid phone number or password"
+                                )
+                            } catch (e: Exception) {
+                                loginError = "An error occurred: ${e.message}"
                                 showError = true
+                            } finally {
+                                isLoading = false
                             }
                         }
                     } else {
@@ -240,12 +272,20 @@ fun LoginScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
+                    .height(56.dp),
+                enabled = !isLoading
             ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
                 Text(
                     text = "Login",
                     fontSize = 18.sp
                 )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -258,7 +298,45 @@ fun LoginScreen(
             }
         }
 
-        // Modern error message UI
+        // Success message
+        AnimatedVisibility(
+            visible = showSuccess,
+            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 16.dp)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .shadow(8.dp, RoundedCornerShape(8.dp)),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = "Success",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = successMessage,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+
+        // Error message
         AnimatedVisibility(
             visible = showError,
             enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),

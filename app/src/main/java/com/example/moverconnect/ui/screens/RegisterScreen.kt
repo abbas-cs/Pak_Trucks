@@ -22,9 +22,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.moverconnect.navigation.UserType
+import com.example.moverconnect.auth.FirebaseAuthService
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.shadow
+import kotlinx.coroutines.launch
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
@@ -34,7 +37,7 @@ fun RegisterScreen(
 ) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     
@@ -46,17 +49,21 @@ fun RegisterScreen(
     var phoneError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
     var showError by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
     var isFormValid by remember { mutableStateOf(false) }
 
+    val scope = rememberCoroutineScope()
+    val authService = remember { FirebaseAuthService() }
+
     // Update form validity
-    LaunchedEffect(fullName, email, phone, password, confirmPassword) {
+    LaunchedEffect(fullName, email, phoneNumber, password, confirmPassword) {
         isFormValid = fullName.isNotBlank() && 
                      email.isNotBlank() && 
-                     phone.isNotBlank() && 
+                     phoneNumber.isNotBlank() && 
                      password.isNotBlank() && 
                      confirmPassword.isNotBlank() &&
                      fullNameError == null && 
@@ -166,11 +173,11 @@ fun RegisterScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     OutlinedTextField(
-                        value = phone,
+                        value = phoneNumber,
                         onValueChange = { 
                             val filtered = it.filter { char -> char.isDigit() }
                             if (filtered.isEmpty() || filtered.startsWith("0")) {
-                                phone = filtered
+                                phoneNumber = filtered
                                 phoneError = when {
                                     filtered.isBlank() -> "Phone number is required"
                                     filtered.length < 11 -> "Phone number must be 11 digits"
@@ -280,7 +287,40 @@ fun RegisterScreen(
                 Button(
                     onClick = {
                         if (isFormValid) {
-                            onRegister()
+                            isLoading = true
+                            scope.launch {
+                                try {
+                                    val result = authService.createUserWithEmailAndPassword(
+                                        email = email,
+                                        password = password,
+                                        fullName = fullName,
+                                        userType = if (userType is UserType.Driver) "driver" else "customer"
+                                    )
+
+                                    result.fold(
+                                        onSuccess = {
+                                            onRegister()
+                                        },
+                                        onFailure = { exception ->
+                                            errorMessage = when {
+                                                exception.message?.contains("email address is already in use") == true ->
+                                                    "An account with this email already exists"
+                                                exception.message?.contains("badly formatted") == true ->
+                                                    "Invalid email format"
+                                                exception.message?.contains("password is too weak") == true ->
+                                                    "Password is too weak. Please use a stronger password"
+                                                else -> "Registration failed: ${exception.message}"
+                                            }
+                                            showError = true
+                                        }
+                                    )
+                                } catch (e: Exception) {
+                                    errorMessage = "An error occurred: ${e.message}"
+                                    showError = true
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
                         } else {
                             errorMessage = "Please fill all fields correctly"
                             showError = true
@@ -289,16 +329,19 @@ fun RegisterScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                    ),
-                    enabled = isFormValid
+                    enabled = isFormValid && !isLoading
                 ) {
-                    Text(
-                        text = "Create Account",
-                        fontSize = 18.sp
-                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text(
+                            text = "Create Account",
+                            fontSize = 18.sp
+                        )
+                    }
                 }
             }
 
@@ -342,7 +385,7 @@ fun RegisterScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = errorMessage,
+                        text = errorMessage ?: "",
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         style = MaterialTheme.typography.bodyMedium
                     )
