@@ -2,93 +2,124 @@ package com.example.moverconnect.ui.screens.driver
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.rememberAsyncImagePainter
 import com.example.moverconnect.R
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.material.icons.filled.Phone
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.ui.platform.LocalContext
+import com.example.moverconnect.data.model.DriverProfile
+import android.content.Context
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DriverProfileViewScreen(onEditProfile: () -> Unit) {
+fun DriverProfileViewScreen(
+    onEditProfile: () -> Unit,
+    viewModel: DriverProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+) {
     val context = LocalContext.current
-    // Dummy profile data
-    val driver = DriverProfile(
-        name = "John Doe",
-        photoRes = R.drawable.ic_profile_placeholder, // Replace with real image in future
-        contact = "+1234567890",
-        whatsapp = "+1234567890",
-        licenseNumber = "DL-123456789",
-        licenseImageUploaded = true,
-        experience = "Expert",
-        bio = "I've been helping people move for 8 years. Reliable and friendly!",
-        vehicleType = "Truck",
-        vehiclePhotoUploaded = true,
-        registration = "ABC-1234",
-        capacity = "2 tons",
-        modelYear = "2020",
-        insuranceStatus = "Insured",
-        city = "Metropolis",
-        areasCovered = "Downtown, Uptown, Eastside",
-        willingToTravel = true,
-        workingHours = "8am - 8pm",
-        rating = 4.8f,
-        completedMoves = 24
-    )
+    val profile by viewModel.profile.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val error by viewModel.error.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.loadProfile()
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center),
+                color = MaterialTheme.colorScheme.primary
+            )
+        } else {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 0.dp, vertical = 0.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Profile photo area
+                // Enhanced Profile Header with Parallax Effect
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-                    .padding(top = 32.dp, bottom = 16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(contentAlignment = Alignment.BottomEnd) {
-                    Image(
-                        painter = painterResource(id = driver.photoRes),
-                        contentDescription = "Driver Photo",
+                        .height(280.dp)
+                ) {
+                    // Background Image with Gradient Overlay
+                    Box(
                         modifier = Modifier
-                            .size(120.dp)
-                            .clip(CircleShape)
-                            .shadow(8.dp, CircleShape)
-                            .background(MaterialTheme.colorScheme.surface)
+                            .fillMaxSize()
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                                    )
+                                )
+                            )
                     )
+
+                    // Profile Content
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // Profile Image with Enhanced Design
+                        Box(
+                            contentAlignment = Alignment.BottomEnd,
+                            modifier = Modifier
+                                .size(140.dp)
+                                .shadow(16.dp, CircleShape)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            Image(
+                                painter = if (profile?.profileImageUrl?.isNotEmpty() == true) {
+                                    rememberAsyncImagePainter(profile?.profileImageUrl)
+                                } else {
+                                    painterResource(id = R.drawable.ic_profile_placeholder)
+                                },
+                                contentDescription = "Profile Photo",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            
+                            // Edit Profile Button
                     FloatingActionButton(
                         onClick = onEditProfile,
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier
                             .size(44.dp)
                             .offset(x = 8.dp, y = 8.dp)
@@ -96,121 +127,355 @@ fun DriverProfileViewScreen(onEditProfile: () -> Unit) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit Profile")
                     }
                 }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Profile Name and Location
+                        Text(
+                            text = profile?.fullName ?: "Driver Name",
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        )
+
+                        Text(
+                            text = profile?.city ?: "Location",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                            )
+                        )
             }
-            // Name and rating
-            Text(driver.name, fontWeight = FontWeight.Bold, fontSize = 26.sp, modifier = Modifier.padding(top = 8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
-                Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("${driver.rating} / 5.0", fontWeight = FontWeight.Medium)
-                Spacer(modifier = Modifier.width(12.dp))
-                Text("${driver.completedMoves} moves", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            // Contact section
+                }
+
+                // Quick Actions with Enhanced Design
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = MaterialTheme.shapes.large,
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        .padding(16.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
             ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SectionHeader("Contact")
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = {
-                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${driver.contact}"))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        ActionButton(
+                            icon = Icons.Default.Phone,
+                            label = "Call",
+                            onClick = {
+                                profile?.phoneNumber?.let { phoneNumber ->
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phoneNumber"))
                             context.startActivity(intent)
-                        }) {
-                            Icon(Icons.Default.Phone, contentDescription = "Call Driver", tint = MaterialTheme.colorScheme.primary)
-                        }
-                        IconButton(onClick = {
-                            val url = "https://wa.me/${driver.whatsapp.replace("+", "")}" // WhatsApp API
+                                }
+                            }
+                        )
+                        ActionButton(
+                            icon = Icons.Default.Chat,
+                            label = "WhatsApp",
+                            onClick = {
+                                profile?.whatsappNumber?.let { whatsappNumber ->
+                                    val url = "https://wa.me/${whatsappNumber.replace("+", "")}"
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                             context.startActivity(intent)
-                        }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_whatsapp),
-                                contentDescription = "WhatsApp Driver",
-                                tint = Color(0xFF25D366)
+                                }
+                            }
+                        )
+                        ActionButton(
+                            icon = Icons.Default.LocationOn,
+                            label = "Location",
+                            onClick = { /* TODO: Implement location sharing */ }
+                        )
+                    }
+                }
+
+                // Stats Section with Enhanced Design
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    StatCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Default.Star,
+                        value = "4.5",
+                        label = "Rating",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    StatCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Default.CheckCircle,
+                        value = "0",
+                        label = "Completed Moves",
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+
+                // Profile Details with Enhanced Design
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    // Vehicle Information
+                    DetailSection(
+                        title = "Vehicle Information",
+                        icon = Icons.Default.DirectionsCar,
+                        color = MaterialTheme.colorScheme.primary
+                    ) {
+                        DetailItem(
+                            label = "Type",
+                            value = profile?.truckType ?: "Not specified",
+                            icon = Icons.Default.DirectionsCar
+                        )
+                        DetailItem(
+                            label = "Capacity",
+                            value = profile?.truckCapacity ?: "Not specified",
+                            icon = Icons.Default.Scale
+                        )
+                        profile?.vehicleImageUrls?.let { urls ->
+                            if (urls.isNotEmpty()) {
+                                DetailItem(
+                                    label = "Photos",
+                                    value = "${urls.size} uploaded",
+                                    icon = Icons.Default.PhotoLibrary
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(driver.contact, fontWeight = FontWeight.Medium)
-                        if (driver.whatsapp != driver.contact) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("WhatsApp: ${driver.whatsapp}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Working Hours
+                    DetailSection(
+                        title = "Working Hours",
+                        icon = Icons.Default.Schedule,
+                        color = MaterialTheme.colorScheme.secondary
+                    ) {
+                        DetailItem(
+                            label = "Availability",
+                            value = "${profile?.workingHoursFrom ?: "Not specified"} - ${profile?.workingHoursTo ?: "Not specified"}",
+                            icon = Icons.Default.AccessTime
+                        )
+                        DetailItem(
+                            label = "Experience",
+                            value = "${profile?.yearsOfExperience ?: "Not specified"} years",
+                            icon = Icons.Default.Work
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Service Area
+                    DetailSection(
+                        title = "Service Area",
+                        icon = Icons.Default.LocationOn,
+                        color = MaterialTheme.colorScheme.tertiary
+                    ) {
+                        DetailItem(
+                            label = "City",
+                            value = profile?.city ?: "Not specified",
+                            icon = Icons.Default.LocationCity
+                        )
+                        DetailItem(
+                            label = "Areas Covered",
+                            value = profile?.area ?: "Not specified",
+                            icon = Icons.Default.Map
+                        )
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(32.dp))
             }
-            // Profile details card
-            Card(
+        }
+
+        error?.let { errorMessage ->
+            Snackbar(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = MaterialTheme.shapes.large,
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
             ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    SectionHeader("Personal Information")
-                    ProfileDetailRow(label = "License Number", value = driver.licenseNumber)
-                    if (driver.licenseImageUploaded) {
-                        Text("License Image: Uploaded", color = MaterialTheme.colorScheme.primary)
-                    }
-                    ProfileDetailRow(label = "Experience", value = driver.experience)
-                    if (driver.bio.isNotBlank()) {
-                        ProfileDetailRow(label = "About", value = driver.bio)
-                    }
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
-                    SectionHeader("Vehicle Information")
-                    ProfileDetailRow(label = "Type", value = driver.vehicleType)
-                    ProfileDetailRow(label = "Registration", value = driver.registration)
-                    ProfileDetailRow(label = "Capacity", value = driver.capacity)
-                    ProfileDetailRow(label = "Model/Year", value = driver.modelYear)
-                    ProfileDetailRow(label = "Insurance", value = driver.insuranceStatus)
-                    if (driver.vehiclePhotoUploaded) {
-                        Text("Vehicle Photo: Uploaded", color = MaterialTheme.colorScheme.primary)
-                    }
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
-                    SectionHeader("Area of Operation & Availability")
-                    ProfileDetailRow(label = "City/Region", value = driver.city)
-                    ProfileDetailRow(label = "Areas Covered", value = driver.areasCovered)
-                    ProfileDetailRow(label = "Willing to Travel", value = if (driver.willingToTravel) "Yes" else "No")
-                    ProfileDetailRow(label = "Working Hours", value = driver.workingHours)
-                }
+                Text(errorMessage)
             }
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
 
 @Composable
-fun ProfileDetailRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text("$label:", fontWeight = FontWeight.Medium, modifier = Modifier.width(130.dp))
-        Text(value, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun ActionButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+                        }
+                    }
+
+@Composable
+private fun StatCard(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    value: String,
+    label: String,
+    color: Color
+) {
+            Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        color = color.copy(alpha = 0.1f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
-private data class DriverProfile(
-    val name: String,
-    val photoRes: Int,
-    val contact: String,
-    val whatsapp: String,
-    val licenseNumber: String,
-    val licenseImageUploaded: Boolean,
-    val experience: String,
-    val bio: String,
-    val vehicleType: String,
-    val vehiclePhotoUploaded: Boolean,
-    val registration: String,
-    val capacity: String,
-    val modelYear: String,
-    val insuranceStatus: String,
-    val city: String,
-    val areasCovered: String,
-    val willingToTravel: Boolean,
-    val workingHours: String,
-    val rating: Float,
-    val completedMoves: Int
-) 
+@Composable
+private fun DetailSection(
+    title: String,
+    icon: ImageVector,
+    color: Color,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            color = color.copy(alpha = 0.1f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(24.dp)
+                    )
+            }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun DetailItem(
+    label: String,
+    value: String,
+    icon: ImageVector
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Medium
+                ),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+} 
