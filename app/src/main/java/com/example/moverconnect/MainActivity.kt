@@ -1,105 +1,195 @@
 package com.example.moverconnect
 
+import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.moverconnect.ui.screens.LoginScreen
-import com.example.moverconnect.ui.screens.customer.CustomerMainScreen
-import com.example.moverconnect.ui.screens.driver.DriverMainScreen
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
+import com.example.moverconnect.navigation.Screen
+import com.example.moverconnect.navigation.UserType
+import com.example.moverconnect.ui.screens.*
 import com.example.moverconnect.ui.theme.MoverConnectTheme
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import com.example.moverconnect.ui.screens.driver.DriverDashboardScreen
+import com.example.moverconnect.ui.screens.driver.DriverProfileSetupScreen
+import com.example.moverconnect.ui.screens.driver.BrowseRequestsScreen
+import com.example.moverconnect.ui.screens.driver.RequestDetailScreen
+import com.example.moverconnect.SessionManager
 
-@OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity() {
-    private val TAG = "MainActivity"
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MoverConnectTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    val navController = rememberNavController()
-                    val currentUser = FirebaseAuth.getInstance().currentUser
-                    val db = FirebaseFirestore.getInstance()
-                    var userType by remember { mutableStateOf("customer") }
-                    val scope = rememberCoroutineScope()
+                val navController = rememberNavController()
+                var selectedUserType by remember { mutableStateOf<UserType?>(null) }
 
-                    // Fetch user type
-                    LaunchedEffect(currentUser) {
-                        try {
-                            currentUser?.let { user ->
-                                val userDoc = db.collection("users").document(user.uid).get().await()
-                                userType = userDoc.getString("userType") ?: "customer"
-                                Log.d(TAG, "User type fetched: $userType")
+                // Check if we should navigate directly to login
+                val destination = intent.getStringExtra("destination")
+                LaunchedEffect(destination) {
+                    if (destination == Screen.Login.route) {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Splash.route) { inclusive = true }
+                        }
+                    }
+                }
+
+                NavHost(
+                    navController = navController,
+                    startDestination = Screen.Splash.route
+                ) {
+                    composable(Screen.Splash.route) {
+                        SplashScreen(
+                            onSplashFinished = {
+                                val context = this@MainActivity
+                                if (SessionManager.isLoggedIn(context)) {
+                                    when (SessionManager.getUserType(context)) {
+                                        "customer" -> {
+                                            navController.navigate(Screen.Dashboard.route) {
+                                                popUpTo(Screen.Splash.route) { inclusive = true }
+                                            }
+                                        }
+                                        "driver" -> {
+                                            navController.navigate(Screen.DriverDashboard.route) {
+                                                popUpTo(Screen.Splash.route) { inclusive = true }
+                                            }
+                                        }
+                                        else -> {
+                                            navController.navigate(Screen.Welcome.route) {
+                                                popUpTo(Screen.Splash.route) { inclusive = true }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    navController.navigate(Screen.Welcome.route) {
+                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                    }
+                                }
                             }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error fetching user type", e)
-                            userType = "customer"
+                        )
+                    }
+
+                    composable(Screen.Welcome.route) {
+                        WelcomeScreen(
+                            onGetStarted = {
+                                navController.navigate(Screen.UserType.route)
+                            },
+                            onLogin = {
+                                navController.navigate(Screen.Login.route)
+                            }
+                        )
+                    }
+
+                    composable(Screen.UserType.route) {
+                        UserTypeScreen(
+                            onUserTypeSelected = { type ->
+                                selectedUserType = type
+                            },
+                            onContinue = {
+                                selectedUserType?.let {
+                                    navController.navigate(Screen.Register.route)
+                                }
+                            }
+                        )
+                    }
+
+                    composable(Screen.Register.route) {
+                        RegisterScreen(
+                            userType = selectedUserType ?: UserType.Customer,
+                            onRegister = {
+                                // Show success message and navigate to login
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.Welcome.route) { inclusive = true }
+                                }
+                            },
+                            onLogin = {
+                                navController.navigate(Screen.Login.route)
+                            }
+                        )
+                    }
+
+                    composable(Screen.Login.route) {
+                        LoginScreen(
+                            onLogin = { email, password ->
+                                // The actual login is handled in LoginScreen with Firebase
+                                // Here we just handle navigation based on user type
+                                when (SessionManager.getUserType(this@MainActivity)) {
+                                    "customer" -> {
+                                        navController.navigate(Screen.Dashboard.route) {
+                                            popUpTo(Screen.Splash.route) { inclusive = true }
+                                        }
+                                    }
+                                    "driver" -> {
+                                        navController.navigate(Screen.DriverDashboard.route) {
+                                            popUpTo(Screen.Splash.route) { inclusive = true }
+                                        }
+                                    }
+                                    else -> {
+                                        // This shouldn't happen, but just in case
+                                        navController.navigate(Screen.Welcome.route) {
+                                            popUpTo(Screen.Splash.route) { inclusive = true }
+                                        }
+                                    }
+                                }
+                            },
+                            onRegister = {
+                                navController.navigate(Screen.UserType.route)
+                            },
+                            onForgotPassword = {
+                                navController.navigate(Screen.ForgotPassword.route)
+                            }
+                        )
+                    }
+
+                    composable(Screen.ForgotPassword.route) {
+                        ForgotPasswordScreen(
+                            onBackToLogin = {
+                                navController.popBackStack()
+                            }
+                        )
+                    }
+
+                    composable(Screen.Dashboard.route) {
+                        LaunchedEffect(key1 = true) {
+                            val intent = Intent(this@MainActivity, CustomerDashboardActivity::class.java)
+                            startActivity(intent)
+                            finish()
                         }
                     }
 
-                    NavHost(
-                        navController = navController,
-                        startDestination = if (currentUser != null) "main" else "login"
-                    ) {
-                        composable("login") {
-                            LoginScreen(
-                                onLogin = { email, password ->
-                                    scope.launch {
-                                        try {
-                                            // Handle login
-                                            navController.navigate("main") {
-                                                popUpTo("login") { inclusive = true }
-                                            }
-                                        } catch (e: Exception) {
-                                            Log.e(TAG, "Login error", e)
-                                        }
-                                    }
-                                },
-                                onRegister = {
-                                    // Handle register navigation
-                                },
-                                onForgotPassword = {
-                                    // Handle forgot password
+                    // DRIVER FLOW
+                    composable(Screen.DriverDashboard.route) {
+                        DriverDashboardScreen(
+                            onProfileClick = { navController.navigate(Screen.DriverProfileSetup.route) },
+                            onBrowseRequests = { navController.navigate(Screen.BrowseRequests.route) },
+                            onLogout = {
+                                SessionManager.logout(this@MainActivity)
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.Splash.route) { inclusive = true }
                                 }
-                            )
-                        }
-                        composable("main") {
-                            if (userType == "driver") {
-                                DriverMainScreen(
-                                    onLogout = {
-                                        scope.launch {
-                                            try {
-                                                FirebaseAuth.getInstance().signOut()
-                                                navController.navigate("login") {
-                                                    popUpTo("main") { inclusive = true }
-                                                }
-                                            } catch (e: Exception) {
-                                                Log.e(TAG, "Logout error", e)
-                                            }
-                                        }
-                                    }
-                                )
-                            } else {
-                                CustomerMainScreen()
                             }
-                        }
+                        )
+                    }
+                    composable(Screen.DriverProfileSetup.route) {
+                        DriverProfileSetupScreen(onSave = { navController.popBackStack() })
+                    }
+                    composable(Screen.BrowseRequests.route) {
+                        BrowseRequestsScreen(
+                            onRequestClick = { requestId ->
+                                navController.navigate(Screen.RequestDetail.createRoute(requestId))
+                            }
+                        )
+                    }
+                    composable(
+                        route = Screen.RequestDetail.route,
+                        arguments = listOf(navArgument("requestId") { type = NavType.IntType })
+                    ) { backStackEntry ->
+                        val requestId = backStackEntry.arguments?.getInt("requestId") ?: 0
+                        RequestDetailScreen(requestId = requestId)
                     }
                 }
             }

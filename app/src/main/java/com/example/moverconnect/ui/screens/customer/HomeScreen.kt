@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.moverconnect.R
 import com.example.moverconnect.ui.screens.driver.DriverProfileViewScreen
 import coil.compose.rememberAsyncImagePainter
@@ -38,11 +39,6 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import com.example.moverconnect.data.repository.DriverProfileRepository
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
 
 class CustomerHomeViewModel : ViewModel() {
     private val repository = DriverProfileRepository.getInstance()
@@ -132,102 +128,18 @@ class CustomerHomeViewModel : ViewModel() {
     }
 }
 
-@Composable
-fun CustomerBottomNav(
-    currentRoute: String,
-    onNavigate: (String) -> Unit
-) {
-    NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp
-    ) {
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-            label = { Text("Home") },
-            selected = currentRoute == "customer_home",
-            onClick = { onNavigate("customer_home") }
-        )
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.History, contentDescription = "Bookings") },
-            label = { Text("Bookings") },
-            selected = currentRoute == "customer_bookings",
-            onClick = { onNavigate("customer_bookings") }
-        )
-        NavigationBarItem(
-            icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
-            label = { Text("Profile") },
-            selected = currentRoute == "customer_profile",
-            onClick = { onNavigate("customer_profile") }
-        )
-    }
-}
-
-@Composable
-fun CustomerMainScreen(
-    navController: NavHostController = rememberNavController()
-) {
-    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route ?: "customer_home"
-
-    Scaffold(
-        bottomBar = {
-            CustomerBottomNav(
-                currentRoute = currentRoute,
-                onNavigate = { route ->
-                    navController.navigate(route) {
-                        popUpTo(navController.graph.startDestinationId)
-                        launchSingleTop = true
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = "customer_home",
-            modifier = Modifier.padding(padding)
-        ) {
-            composable("customer_home") {
-                CustomerHomeScreen()
-            }
-            composable("customer_bookings") {
-                CustomerBookingsScreen()
-            }
-            composable("customer_profile") {
-                CustomerProfileScreen()
-            }
-        }
-    }
-}
-
-@Composable
-fun CustomerBookingsScreen() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Bookings Screen - Coming Soon")
-    }
-}
-
-@Composable
-fun CustomerProfileScreen() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Profile Screen - Coming Soon")
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CustomerHomeScreen(
-    viewModel: CustomerHomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+fun HomeScreen(
+    onNavigate: (String) -> Unit = {},
+    onMenuClick: () -> Unit = {}
 ) {
+    val viewModel: CustomerHomeViewModel = viewModel()
     var selectedDriver by remember { mutableStateOf<DriverProfile?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf<FilterOption?>(null) }
     var showFilters by remember { mutableStateOf(false) }
+    var drawerOpen by remember { mutableStateOf(false) }
 
     val drivers by viewModel.drivers.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -235,78 +147,132 @@ fun CustomerHomeScreen(
 
     if (selectedDriver != null) {
         DriverProfileViewScreen(
-            onEditProfile = { selectedDriver = null }
+            onEditProfile = { selectedDriver = null },
+            viewModel = viewModel()
         )
     } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            // Search Bar
-            SearchBar(
-                query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                onSearch = { },
-                active = false,
-                onActiveChange = { },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                placeholder = { Text("Search drivers by name or location") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                trailingIcon = {
-                    IconButton(onClick = { showFilters = !showFilters }) {
-                        Icon(
-                            if (showFilters) Icons.Default.FilterList else Icons.Outlined.FilterList,
-                            contentDescription = "Filter",
-                            tint = if (showFilters) MaterialTheme.colorScheme.primary 
-                                   else MaterialTheme.colorScheme.onSurface
+        Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                    Column {
+                        // Top App Bar
+                        TopAppBar(
+                            title = { 
+                                Text(
+                                    "Find a Driver",
+                                    style = MaterialTheme.typography.titleLarge
+                                )
+                            },
+                            navigationIcon = {
+                                IconButton(onClick = { drawerOpen = true }) {
+                                    Icon(
+                                        Icons.Default.Menu,
+                                        contentDescription = "Menu"
+                                    )
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                titleContentColor = MaterialTheme.colorScheme.onSurface
+                            )
                         )
-                    }
-                }
-            ) { }
 
-            // Filter Chips
-            if (showFilters) {
-                FilterChips(
-                    selectedFilter = selectedFilter,
-                    onFilterSelected = { selectedFilter = it }
-                )
-            }
+                        // Search Bar
+                        SearchBar(
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            onSearch = { },
+                            active = false,
+                            onActiveChange = { },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            placeholder = { Text("Search drivers by name or location") },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                            trailingIcon = {
+                                IconButton(onClick = { showFilters = !showFilters }) {
+                                    Icon(
+                                        if (showFilters) Icons.Default.FilterList else Icons.Outlined.FilterList,
+                                        contentDescription = "Filter",
+                                        tint = if (showFilters) MaterialTheme.colorScheme.primary 
+                                               else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        ) { }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-            ) {
-                if (isLoading && drivers.isEmpty()) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(drivers) { driver ->
-                            DriverCard(
-                                driver = driver,
-                                onShowDetails = { selectedDriver = driver }
+                        // Filter Chips
+                        if (showFilters) {
+                            FilterChips(
+                                selectedFilter = selectedFilter,
+                                onFilterSelected = { selectedFilter = it }
                             )
                         }
                     }
-                }
-
-                error?.let { errorMessage ->
-                    Snackbar(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(16.dp)
-                    ) {
-                        Text(errorMessage)
+                },
+                bottomBar = {
+                    CustomerBottomNavigation(
+                        currentRoute = CustomerBottomNavItem.Home.route,
+                        onNavigate = onNavigate
+                    )
+            }
+        ) { padding ->
+                Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                        .padding(padding)
+                ) {
+                    if (isLoading && drivers.isEmpty()) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(drivers) { driver ->
+                                DriverCard(
+                                    driver = driver,
+                                    onShowDetails = { selectedDriver = driver }
+                                )
+                            }
+                        }
                     }
+
+                    error?.let { errorMessage ->
+                        Snackbar(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(16.dp)
+                        ) {
+                            Text(text = errorMessage)
+                        }
+                    }
+                }
+            }
+
+            // Drawer
+            if (drawerOpen) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.32f))
+                        .clickable { drawerOpen = false }
+                ) {}
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(300.dp)
+                        .align(Alignment.CenterStart)
+                ) {
+                    CustomerDrawer(
+                        onNavigate = onNavigate,
+                        onClose = { drawerOpen = false },
+                        isOpen = drawerOpen
+                    )
                 }
             }
         }
@@ -508,4 +474,21 @@ enum class FilterOption(
     EXPERIENCE("Experience", Icons.Default.Work),
     AVAILABLE_NOW("Available Now", Icons.Default.AccessTime),
     NEARBY("Nearby", Icons.Default.LocationOn)
-} 
+}
+
+// Copy the DriverProfile data class from the driver package for now (in a real app, share the model)
+data class DriverProfile(
+    val userId: String,
+    val fullName: String,
+    val phoneNumber: String,
+    val whatsappNumber: String,
+    val yearsOfExperience: String,
+    val workingHoursFrom: String,
+    val workingHoursTo: String,
+    val truckType: String,
+    val truckCapacity: String,
+    val city: String,
+    val area: String,
+    val profileImageUrl: String,
+    val vehicleImageUrls: List<String>
+) 
