@@ -5,20 +5,22 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import com.example.moverconnect.ui.screens.driver.StatusBadge
 import com.example.moverconnect.ui.screens.driver.DriverProfileViewScreen
 import kotlinx.coroutines.launch
@@ -87,8 +89,12 @@ fun DriverDashboardScreen(
                     }
                 }
             }
-        ) { padding ->
-            Box(modifier = Modifier.padding(padding)) {
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
                 when (selectedTab) {
                     0 -> RequestsTab(onRequestClick)
                     1 -> SearchTab()
@@ -119,21 +125,43 @@ fun DriverDashboardScreen(
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Spacer(Modifier.height(32.dp))
                         Text(
-                            text = "Menu",
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.padding(bottom = 16.dp)
+                            "Menu",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
                         )
-                        // Add more drawer items here if needed
+                        Spacer(modifier = Modifier.height(24.dp))
+                        MenuItem(
+                            icon = Icons.Default.Person,
+                            label = "Profile",
+                            onClick = {
+                                drawerOpen = false
+                                onProfileClick()
+                            }
+                        )
+                        MenuItem(
+                            icon = Icons.Default.Search,
+                            label = "Browse Requests",
+                            onClick = {
+                                drawerOpen = false
+                                onBrowseRequests()
+                            }
+                        )
+                        MenuItem(
+                            icon = Icons.Default.Settings,
+                            label = "Settings",
+                            onClick = { /* TODO: Implement settings */ }
+                        )
                     }
                     Button(
                         onClick = { showLogoutDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        ),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.Logout, contentDescription = "Logout")
-                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Default.Logout, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text("Logout")
                     }
                 }
@@ -146,21 +174,18 @@ fun DriverDashboardScreen(
                 title = { Text("Logout") },
                 text = { Text("Are you sure you want to logout?") },
                 confirmButton = {
-                    TextButton(onClick = {
+                    TextButton(
+                        onClick = {
                         showLogoutDialog = false
-                        SessionManager.logout(context)
-                        val intent = Intent(context, MainActivity::class.java).apply {
-                            putExtra("destination", Screen.Login.route)
+                            onLogout()
                         }
-                        context.startActivity(intent)
-                        (context as? android.app.Activity)?.finish()
-                    }) {
-                        Text("Yes")
+                    ) {
+                        Text("Logout")
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showLogoutDialog = false }) {
-                        Text("No")
+                        Text("Cancel")
                     }
                 }
             )
@@ -168,65 +193,174 @@ fun DriverDashboardScreen(
     }
 }
 
-// Navigation bar item data class
-private data class NavBarItem(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
-
-// Requests Tab
 @Composable
-fun RequestsTab(onRequestClick: (Int) -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Text(
-            "Active & Pending Requests",
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 18.sp,
-            modifier = Modifier.padding(16.dp)
-        )
-        LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+private fun RequestsTab(onRequestClick: (Int) -> Unit) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Stats Card
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(4.dp, RoundedCornerShape(12.dp)),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    StatItem(
+                        icon = Icons.Default.Star,
+                        value = driverStats.rating.toString(),
+                        label = "Rating"
+                    )
+                    StatItem(
+                        icon = Icons.Default.CheckCircle,
+                        value = driverStats.completedMoves.toString(),
+                        label = "Completed"
+                    )
+                }
+            }
+        }
+
+        // Requests List
             items(mockRequests) { request ->
-                ProfessionalRequestCard(request, onClick = { onRequestClick(request.id) })
+            RequestCard(request = request, onClick = { onRequestClick(request.id) })
             }
         }
     }
+
+@Composable
+private fun StatItem(
+    icon: ImageVector,
+    value: String,
+    label: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 
-// Professional request card
 @Composable
-fun ProfessionalRequestCard(request: MoveRequest, onClick: () -> Unit) {
+private fun RequestCard(
+    request: MoveRequest,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clickable { onClick() },
-        shape = MaterialTheme.shapes.medium,
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            .shadow(4.dp, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(request.customerName, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${request.pickup} → ${request.dropoff}", color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${request.dateTime} | ${request.jobSize}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Payment: ${request.payment}", fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.secondary)
+                Text(
+                    text = request.customerName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                StatusBadge(request.status)
             }
-            StatusBadge(request.status)
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "From: ${request.pickup}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "To: ${request.dropoff}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = request.payment,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = request.dateTime,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = request.jobSize,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }
 
-// Search Tab (placeholder for now)
 @Composable
-fun SearchTab() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Search Requests (Coming Soon)", color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun SearchTab() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            "Search Requests (Coming Soon)",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
-// Ratings Tab
 @Composable
-fun RatingsTab() {
+private fun RatingsTab() {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -234,20 +368,73 @@ fun RatingsTab() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
-        Spacer(modifier = Modifier.height(8.dp))
-        Text("${driverStats.rating} / 5.0", fontWeight = FontWeight.Bold, fontSize = 28.sp)
-        Text("${driverStats.completedMoves} Completed Moves", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(4.dp, RoundedCornerShape(12.dp)),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    Icons.Default.Star,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "${driverStats.rating} / 5.0",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "${driverStats.completedMoves} Completed Moves",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+    }
+}
     }
 }
 
-// Profile Tab
 @Composable
-fun ProfileTab(onProfileClick: () -> Unit) {
+private fun ProfileTab(onProfileClick: () -> Unit) {
     DriverProfileViewScreen(onEditProfile = onProfileClick)
 }
 
-// Data classes for dummy data
+@Composable
+private fun MenuItem(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge
+        )
+    }
+}
+
+data class NavBarItem(val label: String, val icon: ImageVector)
 data class MoveRequest(
     val id: Int,
     val customerName: String,

@@ -240,6 +240,14 @@ fun LoginScreen(
                                         // Save login state with the correct user type
                                         SessionManager.saveLogin(context, userType)
                                         
+                                        // Save user information
+                                        SessionManager.saveUserInfo(
+                                            context = context,
+                                            userId = user.uid,
+                                            userName = user.displayName ?: "User",
+                                            profileImageUrl = user.photoUrl?.toString() ?: ""
+                                        )
+                                        
                                         // Show success message
                                         successMessage = "Welcome back, ${user.displayName ?: "User"}!"
                                         showSuccess = true

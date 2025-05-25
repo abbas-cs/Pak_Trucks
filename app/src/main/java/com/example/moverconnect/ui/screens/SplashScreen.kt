@@ -1,6 +1,7 @@
 package com.example.moverconnect.ui.screens
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -19,22 +20,26 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(onSplashFinished: () -> Unit) {
-    var startAnimation by remember { mutableStateOf(false) }
+    var visible by remember { mutableStateOf(true) }
+    
     val alphaAnim = animateFloatAsState(
-        targetValue = if (startAnimation) 1f else 0f,
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 800),
         label = "Splash Alpha Animation"
     )
 
     LaunchedEffect(key1 = true) {
-        startAnimation = true
-        delay(2000)
+        delay(1500)
+        visible = false
+        delay(800) // Wait for fade out animation
         onSplashFinished()
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.primary),
+            .background(MaterialTheme.colorScheme.primary)
+            .alpha(alphaAnim.value),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -44,17 +49,14 @@ fun SplashScreen(onSplashFinished: () -> Unit) {
             Image(
                 painter = painterResource(id = R.drawable.ic_truck),
                 contentDescription = "Truck Logo",
-                modifier = Modifier
-                    .size(120.dp)
-                    .alpha(alphaAnim.value)
+                modifier = Modifier.size(120.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Pak Trucks",
                 color = MaterialTheme.colorScheme.onPrimary,
                 fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.alpha(alphaAnim.value)
+                fontWeight = FontWeight.Bold
             )
         }
     }

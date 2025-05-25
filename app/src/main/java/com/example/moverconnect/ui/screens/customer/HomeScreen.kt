@@ -1,5 +1,8 @@
 package com.example.moverconnect.ui.screens.customer
 
+import android.app.Application
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,6 +11,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -20,8 +25,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,6 +46,11 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import com.example.moverconnect.data.repository.DriverProfileRepository
+import com.example.moverconnect.MainActivity
+import com.example.moverconnect.SessionManager
+import com.example.moverconnect.navigation.Screen
+import com.example.moverconnect.ui.viewmodels.ReviewViewModel
+import com.example.moverconnect.data.repository.ReviewRepository
 
 class CustomerHomeViewModel : ViewModel() {
     private val repository = DriverProfileRepository.getInstance()
@@ -51,8 +63,144 @@ class CustomerHomeViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    init {
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
+
+    private val _searchSuggestions = MutableStateFlow<List<String>>(emptyList())
+    val searchSuggestions: StateFlow<List<String>> = _searchSuggestions
+
+    private val _searchHistory = MutableStateFlow<List<String>>(emptyList())
+    val searchHistory: StateFlow<List<String>> = _searchHistory
+
+    private val _isSearchActive = MutableStateFlow(false)
+    val isSearchActive: StateFlow<Boolean> = _isSearchActive
+
+    private val _selectedFilters = MutableStateFlow<Set<FilterOption>>(emptySet())
+    val selectedFilters: StateFlow<Set<FilterOption>> = _selectedFilters
+
+    private lateinit var application: Application
+
+    fun init(application: Application) {
+        this.application = application
         loadDrivers()
+        loadSearchHistory()
+    }
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+        if (query.isNotEmpty()) {
+            generateSearchSuggestions(query)
+            setSearchActive(true)
+        } else {
+            _searchSuggestions.value = emptyList()
+            setSearchActive(false)
+        }
+        applyFilters()
+    }
+
+    fun performSearch(query: String) {
+        _searchQuery.value = query
+        _searchSuggestions.value = emptyList()
+        setSearchActive(false)
+        addToSearchHistory(query)
+        filterDrivers()
+    }
+
+    fun setSearchActive(active: Boolean) {
+        _isSearchActive.value = active
+        if (!active) {
+            _searchSuggestions.value = emptyList()
+        }
+    }
+
+    fun addToSearchHistory(query: String) {
+        if (query.isNotEmpty()) {
+            val currentHistory = _searchHistory.value.toMutableList()
+            // Remove if already exists
+            currentHistory.remove(query)
+            // Add to front
+            currentHistory.add(0, query)
+            // Keep only last 10 searches
+            _searchHistory.value = currentHistory.take(10)
+            saveSearchHistory()
+        }
+    }
+
+    fun clearSearchHistory() {
+        _searchHistory.value = emptyList()
+        saveSearchHistory()
+    }
+
+    private fun saveSearchHistory() {
+        viewModelScope.launch {
+            try {
+                val prefs = application.getSharedPreferences("search_prefs", Context.MODE_PRIVATE)
+                prefs.edit().putStringSet("search_history", _searchHistory.value.toSet()).apply()
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
+    private fun loadSearchHistory() {
+        viewModelScope.launch {
+            try {
+                val prefs = application.getSharedPreferences("search_prefs", Context.MODE_PRIVATE)
+                val history = prefs.getStringSet("search_history", emptySet())?.toList() ?: emptyList()
+                _searchHistory.value = history
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
+    private fun generateSearchSuggestions(query: String) {
+        val suggestions = mutableSetOf<String>()
+        val lowercaseQuery = query.lowercase()
+
+        // Add matching cities
+        _drivers.value.map { it.city }.distinct()
+            .filter { it.lowercase().contains(lowercaseQuery) }
+            .forEach { suggestions.add(it) }
+
+        // Add matching areas
+        _drivers.value.map { it.area }.distinct()
+            .filter { it.lowercase().contains(lowercaseQuery) }
+            .forEach { suggestions.add(it) }
+
+        // Add matching truck types
+        _drivers.value.map { it.truckType }.distinct()
+            .filter { it.lowercase().contains(lowercaseQuery) }
+            .forEach { suggestions.add(it) }
+
+        // Add matching driver names
+        _drivers.value.map { it.fullName }.distinct()
+            .filter { it.lowercase().contains(lowercaseQuery) }
+            .forEach { suggestions.add(it) }
+
+        _searchSuggestions.value = suggestions.take(5).toList()
+    }
+
+    private fun filterDrivers() {
+        val query = _searchQuery.value.lowercase()
+        viewModelScope.launch {
+            try {
+                repository.getAllActiveDriverProfiles().collect { allDrivers ->
+                    if (query.isEmpty()) {
+                        _drivers.value = allDrivers
+                    } else {
+                        _drivers.value = allDrivers.filter { driver ->
+                            driver.fullName.lowercase().contains(query) ||
+                            driver.city.lowercase().contains(query) ||
+                            driver.area.lowercase().contains(query) ||
+                            driver.truckType.lowercase().contains(query)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _error.value = "Failed to filter drivers: ${e.message}"
+            }
+        }
     }
 
     fun loadDrivers() {
@@ -126,6 +274,73 @@ class CustomerHomeViewModel : ViewModel() {
     )
 )
     }
+
+    fun toggleFilter(filter: FilterOption) {
+        val currentFilters = _selectedFilters.value.toMutableSet()
+        if (currentFilters.contains(filter)) {
+            currentFilters.remove(filter)
+        } else {
+            currentFilters.add(filter)
+        }
+        _selectedFilters.value = currentFilters
+        applyFilters()
+    }
+
+    fun clearFilters() {
+        _selectedFilters.value = emptySet()
+        applyFilters()
+    }
+
+    private fun applyFilters() {
+        viewModelScope.launch {
+            try {
+                repository.getAllActiveDriverProfiles().collect { allDrivers ->
+                    val query = _searchQuery.value.lowercase()
+                    val filters = _selectedFilters.value
+
+                    // First apply text search if any
+                    var filteredDrivers = if (query.isEmpty()) {
+                        allDrivers
+                    } else {
+                        allDrivers.filter { driver ->
+                            driver.fullName.lowercase().contains(query) ||
+                            driver.city.lowercase().contains(query) ||
+                            driver.area.lowercase().contains(query) ||
+                            driver.truckType.lowercase().contains(query)
+                        }
+                    }
+
+                    // Then apply filters if any
+                    if (filters.isNotEmpty()) {
+                        filteredDrivers = filteredDrivers.filter { driver ->
+                            filters.all { filter ->
+                                when (filter) {
+                                    FilterOption.NEARBY -> true // TODO: Implement actual nearby logic
+                                    FilterOption.TOP_RATED -> {
+                                        // TODO: Replace with actual rating logic
+                                        Random.nextFloat() > 0.3f
+                                    }
+                                    FilterOption.AVAILABLE_NOW -> {
+                                        val currentHour = java.time.LocalTime.now().hour
+                                        val workingHoursFrom = driver.workingHoursFrom.split(":").first().toInt()
+                                        val workingHoursTo = driver.workingHoursTo.split(":").first().toInt()
+                                        currentHour in workingHoursFrom until workingHoursTo
+                                    }
+                                    FilterOption.TRUCK -> driver.truckType.contains("Truck", ignoreCase = true)
+                                    FilterOption.VAN -> driver.truckType.contains("Van", ignoreCase = true)
+                                    else -> true
+                                }
+                            }
+                        }
+                    }
+
+                    _drivers.value = filteredDrivers
+                }
+            } catch (e: Exception) {
+                _error.value = "Failed to filter drivers: ${e.message}"
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -134,21 +349,52 @@ fun HomeScreen(
     onNavigate: (String) -> Unit = {},
     onMenuClick: () -> Unit = {}
 ) {
+    var drawerOpen by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     val viewModel: CustomerHomeViewModel = viewModel()
+    val reviewViewModel: ReviewViewModel = viewModel(
+        factory = ReviewViewModel.ReviewViewModelFactory(ReviewRepository())
+    )
+    
+    // Get current customer info from SessionManager
+    val currentCustomerId = SessionManager.getCurrentUserId(context)
+    val currentCustomerName = SessionManager.getCurrentUserName(context)
+    val currentCustomerProfileImageUrl = SessionManager.getCurrentUserProfileImage(context)
+    
+    // Initialize ViewModel with Application context
+    LaunchedEffect(Unit) {
+        viewModel.init(context.applicationContext as Application)
+    }
+
     var selectedDriver by remember { mutableStateOf<DriverProfile?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf<FilterOption?>(null) }
     var showFilters by remember { mutableStateOf(false) }
-    var drawerOpen by remember { mutableStateOf(false) }
 
     val drivers by viewModel.drivers.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val searchSuggestions by viewModel.searchSuggestions.collectAsState()
+    val searchHistory by viewModel.searchHistory.collectAsState()
+    val isSearchActive by viewModel.isSearchActive.collectAsState()
+    val selectedFilters by viewModel.selectedFilters.collectAsState()
+
+    // Update search query in ViewModel when it changes
+    LaunchedEffect(searchQuery) {
+        viewModel.updateSearchQuery(searchQuery)
+    }
 
     if (selectedDriver != null) {
-        DriverProfileViewScreen(
-            onEditProfile = { selectedDriver = null },
-            viewModel = viewModel()
+        DriverDetailsScreen(
+            driver = selectedDriver!!,
+            onBack = { selectedDriver = null },
+            onBookNow = {
+                onNavigate("booking/${selectedDriver!!.userId}")
+            },
+            reviewViewModel = reviewViewModel,
+            currentCustomerId = currentCustomerId,
+            currentCustomerName = currentCustomerName,
+            currentCustomerProfileImageUrl = currentCustomerProfileImageUrl
         )
     } else {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -177,36 +423,151 @@ fun HomeScreen(
                             )
                         )
 
-                        // Search Bar
-                        SearchBar(
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            onSearch = { },
-                            active = false,
-                            onActiveChange = { },
+                        // Search and Filter Section
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            placeholder = { Text("Search drivers by name or location") },
-                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            // Search Bar
+                            Box {
+                                OutlinedTextField(
+                                    value = searchQuery,
+                                    onValueChange = { 
+                                        searchQuery = it
+                                        viewModel.updateSearchQuery(it)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    placeholder = { 
+                                        Text(
+                                            "Search drivers by name or location",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        ) 
+                                    },
+                                    textStyle = MaterialTheme.typography.bodyMedium,
+                                    leadingIcon = { 
+                                        Icon(
+                                            Icons.Default.Search,
+                                            contentDescription = "Search",
+                                            modifier = Modifier.size(20.dp)
+                                        ) 
+                                    },
                             trailingIcon = {
-                                IconButton(onClick = { showFilters = !showFilters }) {
+                                        if (searchQuery.isNotEmpty()) {
+                                            IconButton(
+                                                onClick = { 
+                                                    searchQuery = ""
+                                                    viewModel.updateSearchQuery("")
+                                                },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Clear,
+                                                    contentDescription = "Clear search",
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        } else if (!isSearchActive) {
+                                            IconButton(
+                                                onClick = { showFilters = !showFilters },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
                                     Icon(
                                         if (showFilters) Icons.Default.FilterList else Icons.Outlined.FilterList,
                                         contentDescription = "Filter",
+                                                    modifier = Modifier.size(18.dp),
                                         tint = if (showFilters) MaterialTheme.colorScheme.primary 
                                                else MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
-                        ) { }
+                                    },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                        containerColor = MaterialTheme.colorScheme.surface
+                                    ),
+                                    keyboardOptions = KeyboardOptions(
+                                        imeAction = ImeAction.Search
+                                    ),
+                                    keyboardActions = KeyboardActions(
+                                        onSearch = {
+                                            viewModel.performSearch(searchQuery)
+                                        }
+                                    )
+                                )
 
-                        // Filter Chips
-                        if (showFilters) {
+                                // Filter Dropdown
+                                if (showFilters && !isSearchActive) {
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 4.dp)
+                                            .offset(y = 48.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface
+                                        ),
+                                        elevation = CardDefaults.cardElevation(
+                                            defaultElevation = 4.dp
+                                        )
+                                    ) {
                             FilterChips(
-                                selectedFilter = selectedFilter,
-                                onFilterSelected = { selectedFilter = it }
-                            )
+                                            selectedFilters = selectedFilters,
+                                            onFilterSelected = { 
+                                                viewModel.toggleFilter(it)
+                                                showFilters = false
+                                            },
+                                            onClearFilters = { 
+                                                viewModel.clearFilters()
+                                                showFilters = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Selected Filter Chips
+                            if (selectedFilters.isNotEmpty()) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    selectedFilters.forEach { filter ->
+                                        FilterChip(
+                                            selected = true,
+                                            onClick = { viewModel.toggleFilter(filter) },
+                                            label = { Text(filter.title) },
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = filter.icon,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            },
+                                            trailingIcon = {
+                                                Icon(
+                                                    Icons.Default.Close,
+                                                    contentDescription = "Remove filter",
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 },
@@ -232,7 +593,7 @@ fun HomeScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
+            ) {
                             items(drivers) { driver ->
                                 DriverCard(
                                     driver = driver,
@@ -269,9 +630,22 @@ fun HomeScreen(
                         .align(Alignment.CenterStart)
                 ) {
                     CustomerDrawer(
-                        onNavigate = onNavigate,
-                        onClose = { drawerOpen = false },
-                        isOpen = drawerOpen
+                        onNavigateToProfile = { onNavigate(CustomerBottomNavItem.Profile.route) },
+                        onNavigateToHistory = { onNavigate(CustomerBottomNavItem.Bookings.route) },
+                        onNavigateToPayments = { /* TODO: Navigate to payments */ },
+                        onNavigateToFavorites = { /* TODO: Navigate to favorites */ },
+                        onNavigateToReviews = { /* TODO: Navigate to reviews */ },
+                        onNavigateToSettings = { /* TODO: Navigate to settings */ },
+                        onNavigateToHelp = { /* TODO: Navigate to help */ },
+                        onLogout = {
+                            SessionManager.logout(context)
+                            val intent = Intent(context, MainActivity::class.java).apply {
+                                putExtra("destination", Screen.Login.route)
+                            }
+                            context.startActivity(intent)
+                            (context as? android.app.Activity)?.finish()
+                        },
+                        onCloseDrawer = { drawerOpen = false }
                     )
                 }
             }
@@ -281,28 +655,80 @@ fun HomeScreen(
 
 @Composable
 private fun FilterChips(
-    selectedFilter: FilterOption?,
-    onFilterSelected: (FilterOption) -> Unit
+    selectedFilters: Set<FilterOption>,
+    onFilterSelected: (FilterOption) -> Unit,
+    onClearFilters: () -> Unit
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(16.dp)
     ) {
-        FilterOption.values().forEach { filter ->
+        // Filter Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Filters",
+                style = MaterialTheme.typography.titleMedium
+            )
+            if (selectedFilters.isNotEmpty()) {
+                TextButton(onClick = onClearFilters) {
+                    Text("Clear All")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Filter Categories in a more compact layout
+        LazyColumn(
+            modifier = Modifier.height(200.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+            FilterCategory.values().forEach { category ->
+                val categoryFilters = FilterOption.values().filter { it.category == category }
+                if (categoryFilters.isNotEmpty()) {
+                    item {
+                        Text(
+                            category.name.lowercase().replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            categoryFilters.forEach { filter ->
             FilterChip(
-                selected = selectedFilter == filter,
+                                    selected = selectedFilters.contains(filter),
                 onClick = { onFilterSelected(filter) },
-                label = { Text(filter.label) },
+                                    label = { Text(filter.title) },
                 leadingIcon = {
                     Icon(
                         imageVector = filter.icon,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(16.dp)
                     )
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                )
+                            }
+                        }
+                    }
                 }
-            )
+            }
         }
     }
 }
@@ -467,13 +893,22 @@ private fun InfoChip(
     }
 
 enum class FilterOption(
-    val label: String,
-    val icon: ImageVector
+    val title: String,
+    val icon: ImageVector,
+    val category: FilterCategory
 ) {
-    RATING_HIGH("High Rating", Icons.Default.Star),
-    EXPERIENCE("Experience", Icons.Default.Work),
-    AVAILABLE_NOW("Available Now", Icons.Default.AccessTime),
-    NEARBY("Nearby", Icons.Default.LocationOn)
+    NEARBY("Nearby", Icons.Default.LocationOn, FilterCategory.LOCATION),
+    TOP_RATED("Top Rated", Icons.Default.Star, FilterCategory.RATING),
+    AVAILABLE_NOW("Available Now", Icons.Default.Schedule, FilterCategory.AVAILABILITY),
+    TRUCK("Truck", Icons.Default.DirectionsCar, FilterCategory.VEHICLE),
+    VAN("Van", Icons.Default.LocalShipping, FilterCategory.VEHICLE)
+}
+
+enum class FilterCategory {
+    LOCATION,
+    RATING,
+    AVAILABILITY,
+    VEHICLE
 }
 
 // Copy the DriverProfile data class from the driver package for now (in a real app, share the model)
@@ -492,3 +927,55 @@ data class DriverProfile(
     val profileImageUrl: String,
     val vehicleImageUrls: List<String>
 ) 
+
+@Composable
+private fun SearchHistoryItem(
+    query: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Default.History,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = query,
+            style = MaterialTheme.typography.bodyLarge
+        )
+    }
+}
+
+@Composable
+private fun SearchSuggestionItem(
+    suggestion: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Default.Search,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = suggestion,
+            style = MaterialTheme.typography.bodyLarge
+        )
+    }
+} 

@@ -33,6 +33,10 @@ import android.content.Intent
 import android.net.Uri
 import com.example.moverconnect.data.model.DriverProfile
 import android.content.Context
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,255 +53,187 @@ fun DriverProfileViewScreen(
         viewModel.loadProfile()
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center),
-                color = MaterialTheme.colorScheme.primary
-            )
-        } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-        ) {
-                // Enhanced Profile Header with Parallax Effect
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                        .height(280.dp)
-                ) {
-                    // Background Image with Gradient Overlay
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primary,
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                                    )
-                                )
-                            )
-                    )
-
-                    // Profile Content
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        // Profile Image with Enhanced Design
-                        Box(
-                            contentAlignment = Alignment.BottomEnd,
-                            modifier = Modifier
-                                .size(140.dp)
-                                .shadow(16.dp, CircleShape)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surface)
-                        ) {
-                            Image(
-                                painter = if (profile?.profileImageUrl?.isNotEmpty() == true) {
-                                    rememberAsyncImagePainter(profile?.profileImageUrl)
-                                } else {
-                                    painterResource(id = R.drawable.ic_profile_placeholder)
-                                },
-                                contentDescription = "Profile Photo",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                            
-                            // Edit Profile Button
-                    FloatingActionButton(
-                        onClick = onEditProfile,
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier
-                            .size(44.dp)
-                            .offset(x = 8.dp, y = 8.dp)
-                    ) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("My Profile") },
+                actions = {
+                    IconButton(onClick = onEditProfile) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit Profile")
                     }
                 }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Profile Name and Location
-                        Text(
-                            text = profile?.fullName ?: "Driver Name",
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        )
-
-                        Text(
-                            text = profile?.city ?: "Location",
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                            )
-                        )
-            }
-                }
-
-                // Quick Actions with Enhanced Design
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                        .padding(16.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    )
+            )
+        }
+    ) { paddingValues ->
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                    Row(
+                CircularProgressIndicator()
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Profile Card
+                item {
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                            .shadow(4.dp, RoundedCornerShape(12.dp)),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
                     ) {
-                        ActionButton(
-                            icon = Icons.Default.Phone,
-                            label = "Call",
-                            onClick = {
-                                profile?.phoneNumber?.let { phoneNumber ->
-                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phoneNumber"))
-                            context.startActivity(intent)
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                if (profile?.profileImageUrl?.isNotEmpty() == true) {
+                                    AsyncImage(
+                                        model = profile?.profileImageUrl,
+                                        contentDescription = "Profile Photo",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.Person,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(60.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
                                 }
                             }
-                        )
-                        ActionButton(
-                            icon = Icons.Default.Chat,
-                            label = "WhatsApp",
-                            onClick = {
-                                profile?.whatsappNumber?.let { whatsappNumber ->
-                                    val url = "https://wa.me/${whatsappNumber.replace("+", "")}"
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                            context.startActivity(intent)
-                                }
-                            }
-                        )
-                        ActionButton(
-                            icon = Icons.Default.LocationOn,
-                            label = "Location",
-                            onClick = { /* TODO: Implement location sharing */ }
-                        )
-                    }
-                }
 
-                // Stats Section with Enhanced Design
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    StatCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.Star,
-                        value = "4.5",
-                        label = "Rating",
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    StatCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.CheckCircle,
-                        value = "0",
-                        label = "Completed Moves",
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
+                            Spacer(modifier = Modifier.height(16.dp))
 
-                // Profile Details with Enhanced Design
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    // Vehicle Information
-                    DetailSection(
-                        title = "Vehicle Information",
-                        icon = Icons.Default.DirectionsCar,
-                        color = MaterialTheme.colorScheme.primary
-                    ) {
-                        DetailItem(
-                            label = "Type",
-                            value = profile?.truckType ?: "Not specified",
-                            icon = Icons.Default.DirectionsCar
-                        )
-                        DetailItem(
-                            label = "Capacity",
-                            value = profile?.truckCapacity ?: "Not specified",
-                            icon = Icons.Default.Scale
-                        )
-                        profile?.vehicleImageUrls?.let { urls ->
-                            if (urls.isNotEmpty()) {
-                                DetailItem(
-                                    label = "Photos",
-                                    value = "${urls.size} uploaded",
-                                    icon = Icons.Default.PhotoLibrary
+                            Text(
+                                text = profile?.fullName ?: "Driver Name",
+                                style = MaterialTheme.typography.headlineMedium.copy(
+                                    fontWeight = FontWeight.Bold
+                                )
                             )
+
+                            Text(
+                                text = "${profile?.city ?: "City"}, ${profile?.area ?: "Area"}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                QuickInfoItem(
+                                    icon = Icons.Default.Star,
+                                    label = "Rating",
+                                    value = "4.8"
+                                )
+                                QuickInfoItem(
+                                    icon = Icons.Default.DirectionsCar,
+                                    label = "Moves",
+                                    value = "150+"
+                                )
+                                QuickInfoItem(
+                                    icon = Icons.Default.Work,
+                                    label = "Experience",
+                                    value = profile?.yearsOfExperience ?: "0"
+                                )
+                            }
                         }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Working Hours
-                    DetailSection(
-                        title = "Working Hours",
-                        icon = Icons.Default.Schedule,
-                        color = MaterialTheme.colorScheme.secondary
-                    ) {
-                        DetailItem(
-                            label = "Availability",
-                            value = "${profile?.workingHoursFrom ?: "Not specified"} - ${profile?.workingHoursTo ?: "Not specified"}",
-                            icon = Icons.Default.AccessTime
-                        )
-                        DetailItem(
-                            label = "Experience",
-                            value = "${profile?.yearsOfExperience ?: "Not specified"} years",
-                            icon = Icons.Default.Work
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Service Area
-                    DetailSection(
-                        title = "Service Area",
-                        icon = Icons.Default.LocationOn,
-                        color = MaterialTheme.colorScheme.tertiary
-                    ) {
-                        DetailItem(
-                            label = "City",
-                            value = profile?.city ?: "Not specified",
-                            icon = Icons.Default.LocationCity
-                        )
-                        DetailItem(
-                            label = "Areas Covered",
-                            value = profile?.area ?: "Not specified",
-                            icon = Icons.Default.Map
-                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                // Working Hours Card
+                item {
+                    InfoCard(
+                        title = "Working Hours",
+                        icon = Icons.Default.AccessTime
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("From: ${profile?.workingHoursFrom ?: "Not specified"}")
+                            Text("To: ${profile?.workingHoursTo ?: "Not specified"}")
+                        }
+                    }
+                }
+
+                // Vehicle Details Card
+                item {
+                    InfoCard(
+                        title = "Vehicle Details",
+                        icon = Icons.Default.DirectionsCar
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Type")
+                                Text(profile?.truckType ?: "Not specified", fontWeight = FontWeight.Medium)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Capacity")
+                                Text(profile?.truckCapacity ?: "Not specified", fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+                }
+
+                // Vehicle Images Card
+                if (profile?.vehicleImageUrls?.isNotEmpty() == true) {
+                    item {
+                        InfoCard(
+                            title = "Vehicle Photos",
+                            icon = Icons.Default.PhotoLibrary
+                        ) {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(profile?.vehicleImageUrls ?: emptyList()) { imageUrl ->
+                                    AsyncImage(
+                                        model = imageUrl,
+                                        contentDescription = "Vehicle Photo",
+                                        modifier = Modifier
+                                            .width(280.dp)
+                                            .height(200.dp)
+                                            .clip(RoundedCornerShape(8.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
         error?.let { errorMessage ->
             Snackbar(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
                     .padding(16.dp)
             ) {
                 Text(errorMessage)
@@ -307,175 +243,70 @@ fun DriverProfileViewScreen(
 }
 
 @Composable
-private fun ActionButton(
+private fun QuickInfoItem(
     icon: ImageVector,
     label: String,
-    onClick: () -> Unit
+    value: String
 ) {
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                modifier = Modifier.size(28.dp),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-                        }
-                    }
-
-@Composable
-private fun StatCard(
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    value: String,
-    label: String,
-    color: Color
-) {
-            Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        color = color.copy(alpha = 0.1f),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = color,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun DetailSection(
-    title: String,
-    icon: ImageVector,
-    color: Color,
-    content: @Composable () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 16.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            color = color.copy(alpha = 0.1f),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = color,
-                        modifier = Modifier.size(24.dp)
-                    )
-            }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            content()
-        }
-    }
-}
-
-@Composable
-private fun DetailItem(
-    label: String,
-    value: String,
-    icon: ImageVector
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
         )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.Medium
-                ),
-                color = MaterialTheme.colorScheme.onSurface
-            )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun InfoCard(
+    title: String,
+    icon: ImageVector,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(4.dp, RoundedCornerShape(12.dp)),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 12.dp)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            content()
         }
     }
 } 

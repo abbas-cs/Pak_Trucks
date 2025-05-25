@@ -5,12 +5,15 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.moverconnect.ui.screens.customer.*
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun CustomerNavigation(
     navController: NavHostController,
     startDestination: String = CustomerBottomNavItem.Home.route
 ) {
+    val context = LocalContext.current
+
     NavHost(
         navController = navController,
         startDestination = startDestination
@@ -39,7 +42,8 @@ fun CustomerNavigation(
                         launchSingleTop = true
                         restoreState = true
                     }
-                }
+                },
+                context = context
             )
         }
 
@@ -53,7 +57,8 @@ fun CustomerNavigation(
                         launchSingleTop = true
                         restoreState = true
                     }
-                }
+                },
+                context = context
             )
         }
 
@@ -67,6 +72,15 @@ fun CustomerNavigation(
                         launchSingleTop = true
                         restoreState = true
                     }
+                }
+            )
+        }
+
+        // Edit Profile Screen
+        composable("edit_profile") {
+            EditProfileScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }

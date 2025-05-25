@@ -50,4 +50,41 @@ class CustomerProfileViewModel : ViewModel() {
             }
         }
     }
+
+    fun updateProfile(
+        fullName: String,
+        email: String,
+        phoneNumber: String,
+        address: String,
+        bio: String
+    ) = viewModelScope.launch {
+        _isLoading.value = true
+        _error.value = null
+        Log.d(TAG, "Updating profile")
+        
+        try {
+            val updatedProfile = UserProfile(
+                fullName = fullName,
+                email = email,
+                phoneNumber = phoneNumber,
+                address = address,
+                bio = bio
+            )
+            
+            repository.updateUserProfile(updatedProfile)
+                .onSuccess { profile ->
+                    Log.d(TAG, "Profile updated successfully")
+                    _profile.value = profile
+                }
+                .onFailure { e ->
+                    Log.e(TAG, "Failed to update profile", e)
+                    _error.value = e.message ?: "Failed to update profile"
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error updating profile", e)
+            _error.value = e.message ?: "An unexpected error occurred"
+        } finally {
+            _isLoading.value = false
+        }
+    }
 } 

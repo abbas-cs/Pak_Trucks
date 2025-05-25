@@ -18,6 +18,17 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
+    // Allow users to read and write their own user profiles
+    match /user_profiles/{userId} {
+      allow read: if request.auth != null;  // Any authenticated user can read user profiles
+      allow write: if request.auth != null && request.auth.uid == userId;  // Only the user can write their own profile
+    }
+    
+    // Reviews collection rules - temporarily more permissive for testing
+    match /reviews/{reviewId} {
+      allow read, write: if request.auth != null;  // Allow any authenticated user to read and write reviews
+    }
+    
     // Default deny
     match /{document=**} {
       allow read, write: if false;

@@ -1,5 +1,7 @@
 package com.example.moverconnect.ui.screens.customer
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,6 +21,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.text.SimpleDateFormat
 import java.util.*
+import com.example.moverconnect.MainActivity
+import com.example.moverconnect.SessionManager
+import com.example.moverconnect.navigation.Screen
 
 data class Message(
     val id: String,
@@ -32,7 +37,8 @@ data class Message(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesScreen(
-    onNavigate: (String) -> Unit = {}
+    onNavigate: (String) -> Unit = {},
+    context: Context
 ) {
     var drawerOpen by remember { mutableStateOf(false) }
 
@@ -146,9 +152,22 @@ fun MessagesScreen(
                     .align(Alignment.CenterStart)
             ) {
                 CustomerDrawer(
-                    onNavigate = onNavigate,
-                    onClose = { drawerOpen = false },
-                    isOpen = drawerOpen
+                    onNavigateToProfile = { onNavigate(CustomerBottomNavItem.Profile.route) },
+                    onNavigateToHistory = { onNavigate(CustomerBottomNavItem.Bookings.route) },
+                    onNavigateToPayments = { /* TODO: Navigate to payments */ },
+                    onNavigateToFavorites = { /* TODO: Navigate to favorites */ },
+                    onNavigateToReviews = { /* TODO: Navigate to reviews */ },
+                    onNavigateToSettings = { /* TODO: Navigate to settings */ },
+                    onNavigateToHelp = { /* TODO: Navigate to help */ },
+                    onLogout = {
+                        SessionManager.logout(context)
+                        val intent = Intent(context, MainActivity::class.java).apply {
+                            putExtra("destination", Screen.Login.route)
+                        }
+                        context.startActivity(intent)
+                        (context as? android.app.Activity)?.finish()
+                    },
+                    onCloseDrawer = { drawerOpen = false }
                 )
             }
         }

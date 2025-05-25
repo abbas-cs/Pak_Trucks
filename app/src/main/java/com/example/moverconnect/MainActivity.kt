@@ -50,23 +50,35 @@ class MainActivity : ComponentActivity() {
                                     when (SessionManager.getUserType(context)) {
                                         "customer" -> {
                                             navController.navigate(Screen.Dashboard.route) {
-                                                popUpTo(Screen.Splash.route) { inclusive = true }
+                                                popUpTo(Screen.Splash.route) { 
+                                                    inclusive = true 
+                                                }
+                                                launchSingleTop = true
                                             }
                                         }
                                         "driver" -> {
                                             navController.navigate(Screen.DriverDashboard.route) {
-                                                popUpTo(Screen.Splash.route) { inclusive = true }
+                                                popUpTo(Screen.Splash.route) { 
+                                                    inclusive = true 
+                                                }
+                                                launchSingleTop = true
                                             }
                                         }
                                         else -> {
                                             navController.navigate(Screen.Welcome.route) {
-                                                popUpTo(Screen.Splash.route) { inclusive = true }
+                                                popUpTo(Screen.Splash.route) { 
+                                                    inclusive = true 
+                                                }
+                                                launchSingleTop = true
                                             }
                                         }
                                     }
                                 } else {
                                     navController.navigate(Screen.Welcome.route) {
-                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                        popUpTo(Screen.Splash.route) { 
+                                            inclusive = true 
+                                        }
+                                        launchSingleTop = true
                                     }
                                 }
                             }
@@ -154,11 +166,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable(Screen.Dashboard.route) {
-                        LaunchedEffect(key1 = true) {
-                            val intent = Intent(this@MainActivity, CustomerDashboardActivity::class.java)
-                            startActivity(intent)
-                            finish()
-                        }
+                        CustomerDashboard()
                     }
 
                     // DRIVER FLOW
@@ -189,7 +197,10 @@ class MainActivity : ComponentActivity() {
                         arguments = listOf(navArgument("requestId") { type = NavType.IntType })
                     ) { backStackEntry ->
                         val requestId = backStackEntry.arguments?.getInt("requestId") ?: 0
-                        RequestDetailScreen(requestId = requestId)
+                        RequestDetailScreen(
+                            requestId = requestId,
+                            onBack = { navController.popBackStack() }
+                        )
                     }
                 }
             }
