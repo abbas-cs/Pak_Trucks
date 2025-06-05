@@ -37,208 +37,256 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import coil.compose.AsyncImage
+import com.example.moverconnect.MainActivity
+import com.example.moverconnect.SessionManager
+import com.example.moverconnect.navigation.Screen
+import android.widget.Toast
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DriverProfileViewScreen(
     onEditProfile: () -> Unit,
+    onNavigate: (String) -> Unit = {},
     viewModel: DriverProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
-    val context = LocalContext.current
+    var showLogoutDialog by remember { mutableStateOf(false) }
     val profile by viewModel.profile.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val context = LocalContext.current
 
+    // Load profile when the screen is first displayed or when returning to it
     LaunchedEffect(Unit) {
         viewModel.loadProfile()
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("My Profile") },
-                actions = {
-                    IconButton(onClick = onEditProfile) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit Profile")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
+    // Reload profile when returning to this screen
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.loadProfile()
             }
-        } else {
-            LazyColumn(
+    }
+
+        Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
             ) {
-                // Profile Card
-                item {
+            // Profile Header
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shadow(4.dp, RoundedCornerShape(12.dp)),
-                        shape = RoundedCornerShape(12.dp),
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface
                         )
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                    // Profile Picture
                             Box(
                         modifier = Modifier
-                            .size(120.dp)
+                            .size(100.dp)
                             .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                            .padding(4.dp)
                             ) {
-                                if (profile?.profileImageUrl?.isNotEmpty() == true) {
                                     AsyncImage(
-                                        model = profile?.profileImageUrl,
-                                        contentDescription = "Profile Photo",
-                                        modifier = Modifier.fillMaxSize(),
+                            model = profile?.profileImageUrl ?: "https://picsum.photos/200",
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape),
                                         contentScale = ContentScale.Crop
                                     )
-                                } else {
-                                    Icon(
-                                        Icons.Default.Person,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(60.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Text(
-                                text = profile?.fullName ?: "Driver Name",
-                                style = MaterialTheme.typography.headlineMedium.copy(
+                        text = profile?.fullName ?: "Not Set",
+                        style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold
                                 )
                             )
 
+                    Spacer(modifier = Modifier.height(4.dp))
+
                             Text(
-                                text = "${profile?.city ?: "City"}, ${profile?.area ?: "Area"}",
+                        text = "${profile?.city ?: "Not Set"}, ${profile?.area ?: "Not Set"}",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
-                            ) {
-                                QuickInfoItem(
-                                    icon = Icons.Default.Star,
-                                    label = "Rating",
-                                    value = "4.8"
-                                )
-                                QuickInfoItem(
-                                    icon = Icons.Default.DirectionsCar,
-                                    label = "Moves",
-                                    value = "150+"
-                                )
-                                QuickInfoItem(
-                                    icon = Icons.Default.Work,
-                                    label = "Experience",
-                                    value = profile?.yearsOfExperience ?: "0"
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Working Hours Card
-                item {
-                    InfoCard(
-                        title = "Working Hours",
-                        icon = Icons.Default.AccessTime
+                    OutlinedButton(
+                        onClick = onEditProfile,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("From: ${profile?.workingHoursFrom ?: "Not specified"}")
-                            Text("To: ${profile?.workingHoursTo ?: "Not specified"}")
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Edit Profile")
                         }
                     }
                 }
 
-                // Vehicle Details Card
-                item {
-                    InfoCard(
-                        title = "Vehicle Details",
-                        icon = Icons.Default.DirectionsCar
+            // Availability Toggle Section
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Availability Status",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                            text = if (profile?.isAvailable == true) "You are currently available for jobs" else "You are currently unavailable",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = profile?.isAvailable ?: false,
+                        onCheckedChange = { isAvailable ->
+                            viewModel.updateAvailability(isAvailable)
+                        },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Support and Logout Section
+            Card(
+                            modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
                     ) {
                         Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.padding(16.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Type")
-                                Text(profile?.truckType ?: "Not specified", fontWeight = FontWeight.Medium)
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Capacity")
-                                Text(profile?.truckCapacity ?: "Not specified", fontWeight = FontWeight.Medium)
-                            }
+                    SettingsItem(
+                        icon = Icons.Default.Help,
+                        title = "Help & Support",
+                        onClick = { onNavigate("help") }
+                    )
+
+                    Divider(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+
+                    SettingsItem(
+                        icon = Icons.Default.Logout,
+                        title = "Logout",
+                        onClick = { showLogoutDialog = true }
+                    )
                         }
                     }
                 }
 
-                // Vehicle Images Card
-                if (profile?.vehicleImageUrls?.isNotEmpty() == true) {
-                    item {
-                        InfoCard(
-                            title = "Vehicle Photos",
-                            icon = Icons.Default.PhotoLibrary
-                        ) {
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(profile?.vehicleImageUrls ?: emptyList()) { imageUrl ->
-                                    AsyncImage(
-                                        model = imageUrl,
-                                        contentDescription = "Vehicle Photo",
-                                        modifier = Modifier
-                                            .width(280.dp)
-                                            .height(200.dp)
-                                            .clip(RoundedCornerShape(8.dp)),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                }
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Logout") },
+            text = { Text("Are you sure you want to logout?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        SessionManager.logout(context)
+                        val intent = Intent(context, MainActivity::class.java).apply {
+                            putExtra("destination", Screen.Login.route)
+                        }
+                        context.startActivity(intent)
+                        (context as? android.app.Activity)?.finish()
+                    }
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showLogoutDialog = false }
+                ) {
+                    Text("No")
                             }
                         }
-                    }
+        )
                 }
+
+    // Show error if any
+    if (error != null) {
+        Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+    }
             }
-        }
 
-        error?.let { errorMessage ->
-            Snackbar(
+@Composable
+private fun SettingsItem(
+    icon: ImageVector,
+    title: String,
+    onClick: () -> Unit
+) {
+    Row(
                 modifier = Modifier
-                    .padding(16.dp)
-            ) {
-                Text(errorMessage)
-            }
-        }
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

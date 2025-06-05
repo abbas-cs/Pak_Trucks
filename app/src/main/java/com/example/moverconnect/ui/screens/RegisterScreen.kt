@@ -294,7 +294,8 @@ fun RegisterScreen(
                                         email = email,
                                         password = password,
                                         fullName = fullName,
-                                        userType = if (userType is UserType.Driver) "driver" else "customer"
+                                        userType = if (userType is UserType.Customer) "customer" else "driver",
+                                        phoneNumber = phoneNumber
                                     )
 
                                     result.fold(
@@ -307,8 +308,6 @@ fun RegisterScreen(
                                                     "An account with this email already exists"
                                                 exception.message?.contains("badly formatted") == true ->
                                                     "Invalid email format"
-                                                exception.message?.contains("password is too weak") == true ->
-                                                    "Password is too weak. Please use a stronger password"
                                                 else -> "Registration failed: ${exception.message}"
                                             }
                                             showError = true
@@ -322,7 +321,7 @@ fun RegisterScreen(
                                 }
                             }
                         } else {
-                            errorMessage = "Please fill all fields correctly"
+                            errorMessage = "Please fix the errors above"
                             showError = true
                         }
                     },
@@ -338,7 +337,7 @@ fun RegisterScreen(
                         )
                     } else {
                         Text(
-                            text = "Create Account",
+                            text = "Register",
                             fontSize = 18.sp
                         )
                     }

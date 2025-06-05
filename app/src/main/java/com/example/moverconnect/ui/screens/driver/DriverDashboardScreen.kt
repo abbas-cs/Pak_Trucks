@@ -65,29 +65,47 @@ fun DriverDashboardScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(navItems[selectedTab].label) },
+                    title = { 
+                        Text(
+                            text = navItems[selectedTab].label,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         titleContentColor = MaterialTheme.colorScheme.onPrimary
                     ),
-                    actions = {
+                    navigationIcon = {
                         IconButton(onClick = { drawerOpen = true }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                            Icon(
+                                imageVector = Icons.Default.Menu,
+                                contentDescription = "Menu",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
                         }
-                    }
+                    },
+                    modifier = Modifier.shadow(4.dp)
                 )
             },
             bottomBar = {
-                NavigationBar {
-                    navItems.forEachIndexed { index, item ->
-                        NavigationBarItem(
-                            icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label) },
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index }
-                        )
+                DriverBottomNavigation(
+                    currentRoute = when (selectedTab) {
+                        0 -> DriverBottomNavItem.Requests.route
+                        1 -> DriverBottomNavItem.Search.route
+                        2 -> DriverBottomNavItem.Ratings.route
+                        3 -> DriverBottomNavItem.Profile.route
+                        else -> DriverBottomNavItem.Requests.route
+                    },
+                    onNavigate = { route ->
+                        when (route) {
+                            DriverBottomNavItem.Requests.route -> selectedTab = 0
+                            DriverBottomNavItem.Search.route -> selectedTab = 1
+                            DriverBottomNavItem.Ratings.route -> selectedTab = 2
+                            DriverBottomNavItem.Profile.route -> selectedTab = 3
+                        }
                     }
-                }
+                )
             }
         ) { paddingValues ->
             Box(
@@ -115,56 +133,18 @@ fun DriverDashboardScreen(
                 Modifier
                     .fillMaxHeight()
                     .width(300.dp)
-                    .align(Alignment.CenterEnd)
-                    .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large)
+                    .align(Alignment.CenterStart)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            "Menu",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
-                        MenuItem(
-                            icon = Icons.Default.Person,
-                            label = "Profile",
-                            onClick = {
-                                drawerOpen = false
-                                onProfileClick()
-                            }
-                        )
-                        MenuItem(
-                            icon = Icons.Default.Search,
-                            label = "Browse Requests",
-                            onClick = {
-                                drawerOpen = false
-                                onBrowseRequests()
-                            }
-                        )
-                        MenuItem(
-                            icon = Icons.Default.Settings,
-                            label = "Settings",
-                            onClick = { /* TODO: Implement settings */ }
-                        )
-                    }
-                    Button(
-                        onClick = { showLogoutDialog = true },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Logout, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Logout")
-                    }
-                }
+                DriverDrawer(
+                    onNavigateToProfile = { onProfileClick() },
+                    onNavigateToHistory = { /* TODO: Navigate to job history */ },
+                    onNavigateToEarnings = { /* TODO: Navigate to earnings */ },
+                    onNavigateToReviews = { /* TODO: Navigate to reviews */ },
+                    onNavigateToSettings = { /* TODO: Navigate to settings */ },
+                    onNavigateToHelp = { /* TODO: Navigate to help */ },
+                    onLogout = onLogout,
+                    onCloseDrawer = { drawerOpen = false }
+                )
             }
         }
 

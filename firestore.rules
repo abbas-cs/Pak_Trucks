@@ -2,34 +2,92 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow anyone to read driver profiles, but only drivers can write their own
-    match /driver_profiles/{userId} {
-      allow read: if true;  // Anyone can read driver profiles
-      allow write: if request.auth != null && request.auth.uid == userId;  // Only the driver can write their own profile
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
     }
     
-    // Allow users to read and write their own user profile
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Users collection rules
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Allow reading own user document
+      allow read: if isOwner(userId);
+      
+      // Allow writing own user document
+      allow write: if isOwner(userId);
+      
+      // Allow querying by phone number for login (no auth required)
+      allow list: if true;
+        
+      // Allow creating new user document during registration
+      allow create: if 
+        request.resource.data.keys().hasAll(['userType', 'fullName', 'email', 'phoneNumber', 'createdAt']) &&
+        request.resource.data.phoneNumber is string &&
+        request.resource.data.email is string;
     }
-    
-    // Allow users to read and write their own driver documents
-    match /drivers/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Allow users to read and write their own user profiles
+
+    // User profiles collection rules
     match /user_profiles/{userId} {
-      allow read: if request.auth != null;  // Any authenticated user can read user profiles
-      allow write: if request.auth != null && request.auth.uid == userId;  // Only the user can write their own profile
+      // Allow reading any user profile when authenticated
+      allow read: if isAuthenticated();
+      
+      // Allow writing own profile
+      allow write: if isOwner(userId);
+    }
+
+    // Driver profiles collection rules
+    match /driver_profiles/{userId} {
+      // Allow reading any driver profile
+      allow read: if true;
+      
+      // Allow writing own driver profile
+      allow write: if isOwner(userId);
     }
     
-    // Reviews collection rules - temporarily more permissive for testing
+    // Drivers collection rules
+    match /drivers/{userId} {
+      // Allow reading and writing own driver document
+      allow read, write: if isOwner(userId);
+    }
+
+    // Reviews collection rules
     match /reviews/{reviewId} {
-      allow read, write: if request.auth != null;  // Allow any authenticated user to read and write reviews
+      // Allow reading any review when authenticated
+      allow read: if isAuthenticated();
+      
+      // Allow writing reviews when authenticated
+      allow create: if isAuthenticated();
+      
+      // Allow updating own reviews
+      allow update, delete: if isAuthenticated() && 
+        request.resource.data.driverId == request.auth.uid;
+    }
+
+    // Move requests collection rules
+    match /move_requests/{requestId} {
+      // Allow reading own requests
+      allow read: if isAuthenticated() && 
+        (resource.data.customerId == request.auth.uid || 
+         resource.data.driverId == request.auth.uid);
+      
+      // Allow creating new requests
+      allow create: if isAuthenticated() && 
+        request.resource.data.customerId == request.auth.uid;
+      
+      // Allow updating own requests
+      allow update: if isAuthenticated() && 
+        (resource.data.customerId == request.auth.uid || 
+         resource.data.driverId == request.auth.uid);
+      
+      // Allow deleting own requests
+      allow delete: if isAuthenticated() && 
+        resource.data.customerId == request.auth.uid;
     }
     
-    // Default deny
+    // Default deny all other access
     match /{document=**} {
       allow read, write: if false;
     }

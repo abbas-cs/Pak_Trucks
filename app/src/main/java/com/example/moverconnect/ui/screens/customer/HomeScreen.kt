@@ -734,17 +734,16 @@ private fun FilterChips(
 }
 
 @Composable
-fun DriverCard(driver: DriverProfile, onShowDetails: () -> Unit) {
-    // Generate dummy data for unavailable fields
-    val rating = remember { Random.nextFloat() * 2 + 3 } // Random rating between 3.0 and 5.0
-    val completedMoves = remember { Random.nextInt(5, 50) } // Random number of completed moves
-
+private fun DriverCard(
+    driver: DriverProfile,
+    onShowDetails: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(12.dp))
+            .shadow(4.dp, RoundedCornerShape(16.dp))
             .clickable(onClick = onShowDetails),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
@@ -752,13 +751,13 @@ fun DriverCard(driver: DriverProfile, onShowDetails: () -> Unit) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Profile Image
             Box(
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(64.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
@@ -774,7 +773,7 @@ fun DriverCard(driver: DriverProfile, onShowDetails: () -> Unit) {
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
             // Driver Info
             Column(
@@ -782,68 +781,125 @@ fun DriverCard(driver: DriverProfile, onShowDetails: () -> Unit) {
             ) {
                 Text(
                     text = driver.fullName,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Rating and Availability Row
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(vertical = 2.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Icon(
                         Icons.Default.Star,
                         contentDescription = null,
-                        tint = Color(0xFFFFC107),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = String.format("%.1f", rating),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Medium
-                        )
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = " • $completedMoves moves",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = "4.8",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "•",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (driver.isAvailable) {
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "Available",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    } else {
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.outline)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "Unavailable",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
                 }
 
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Location Row
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = 2.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Icon(
                         Icons.Default.LocationOn,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.width(2.dp))
                     Text(
                         text = "${driver.city}, ${driver.area}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Vehicle Info Row
                 Row(
-                    modifier = Modifier.padding(top = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    InfoChip(
-                        icon = Icons.Default.DirectionsCar,
-                        text = driver.truckType,
-                        modifier = Modifier.weight(1f)
+                    Icon(
+                        Icons.Default.DirectionsCar,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    InfoChip(
-                        icon = Icons.Default.Scale,
-                        text = driver.truckCapacity,
-                        modifier = Modifier.weight(1f)
+                    Text(
+                        text = "${driver.truckType} • ${driver.truckCapacity}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -852,8 +908,8 @@ fun DriverCard(driver: DriverProfile, onShowDetails: () -> Unit) {
             Icon(
                 Icons.Default.ChevronRight,
                 contentDescription = "View Details",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 8.dp)
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -888,9 +944,9 @@ private fun InfoChip(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            }
         }
     }
+}
 
 enum class FilterOption(
     val title: String,
@@ -910,23 +966,6 @@ enum class FilterCategory {
     AVAILABILITY,
     VEHICLE
 }
-
-// Copy the DriverProfile data class from the driver package for now (in a real app, share the model)
-data class DriverProfile(
-    val userId: String,
-    val fullName: String,
-    val phoneNumber: String,
-    val whatsappNumber: String,
-    val yearsOfExperience: String,
-    val workingHoursFrom: String,
-    val workingHoursTo: String,
-    val truckType: String,
-    val truckCapacity: String,
-    val city: String,
-    val area: String,
-    val profileImageUrl: String,
-    val vehicleImageUrls: List<String>
-) 
 
 @Composable
 private fun SearchHistoryItem(
@@ -949,7 +988,8 @@ private fun SearchHistoryItem(
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = query,
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }

@@ -105,11 +105,11 @@ fun LoginScreen(
                     value = phoneNumber,
                     onValueChange = { 
                         val filtered = it.filter { char -> char.isDigit() }
-                        if (filtered.isEmpty() || filtered.startsWith("0")) {
+                        if (filtered.length <= 11) {
                             phoneNumber = filtered
                             phoneError = when {
+                                filtered.isEmpty() -> "Phone number is required"
                                 filtered.length < 11 -> "Phone number must be 11 digits"
-                                filtered.length > 11 -> "Phone number cannot exceed 11 digits"
                                 !filtered.startsWith("0") -> "Phone number must start with 0"
                                 else -> null
                             }
@@ -126,7 +126,8 @@ fun LoginScreen(
                     leadingIcon = {
                         Icon(Icons.Default.Phone, contentDescription = "Phone")
                     },
-                    placeholder = { Text("03XXXXXXXXX") }
+                    placeholder = { Text("03XXXXXXXXX") },
+                    singleLine = true
                 )
             } else {
                 OutlinedTextField(
@@ -248,19 +249,18 @@ fun LoginScreen(
                                             profileImageUrl = user.photoUrl?.toString() ?: ""
                                         )
                                         
-                                        // Show success message
-                                        successMessage = "Welcome back, ${user.displayName ?: "User"}!"
+                                        successMessage = "Login successful!"
                                         showSuccess = true
-                                        
-                                        // Navigate after a short delay
-                                        delay(1500)
                                 onLogin(phoneNumber, password)
                                     },
                                     onFailure = { exception ->
                                         loginError = when {
-                                            exception.message?.contains("no user record") == true -> "No account found with these credentials"
-                                            exception.message?.contains("password is invalid") == true -> "Invalid password"
-                                            exception.message?.contains("User type not found") == true -> "Account type not found. Please contact support."
+                                            exception.message?.contains("no user record") == true ->
+                                                if (useEmailLogin) "No account found with this email" else "No account found with this phone number"
+                                            exception.message?.contains("badly formatted") == true ->
+                                                if (useEmailLogin) "Invalid email format" else "Invalid phone number format"
+                                            exception.message?.contains("password is invalid") == true ->
+                                                "Incorrect password"
                                             else -> "Login failed: ${exception.message}"
                                         }
                                 showError = true
@@ -273,15 +273,12 @@ fun LoginScreen(
                                 isLoading = false
                             }
                         }
-                    } else {
-                        loginError = "Please fix the errors above"
-                        showError = true
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = !isLoading
+                enabled = phoneError == null && passwordError == null && !isLoading
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(

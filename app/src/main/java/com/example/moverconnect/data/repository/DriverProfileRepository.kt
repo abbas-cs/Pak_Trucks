@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.moverconnect.data.model.DriverProfile
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -11,21 +12,9 @@ import kotlinx.coroutines.tasks.await
 
 class DriverProfileRepository private constructor() {
     private val TAG = "DriverProfileRepository"
-    private val firestore = FirebaseFirestore.getInstance()
+    private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-
-    private val driverProfilesCollection = firestore.collection("driver_profiles")
-
-    companion object {
-        @Volatile
-        private var instance: DriverProfileRepository? = null
-
-        fun getInstance(): DriverProfileRepository {
-            return instance ?: synchronized(this) {
-                instance ?: DriverProfileRepository().also { instance = it }
-            }
-        }
-    }
+    private val driverProfilesCollection = db.collection("driver_profiles")
 
     suspend fun saveDriverProfile(profile: DriverProfile): Result<DriverProfile> = try {
         val currentUser = auth.currentUser
@@ -68,32 +57,27 @@ class DriverProfileRepository private constructor() {
         Result.failure(e)
     }
 
-    suspend fun getDriverProfile(): Result<DriverProfile?> = try {
+    suspend fun getDriverProfile(): Result<DriverProfile?> {
+        return try {
         val currentUser = auth.currentUser
-        Log.d(TAG, "Getting profile for user: ${currentUser?.email}, UID: ${currentUser?.uid}")
+            val userId = currentUser?.uid ?: return Result.failure(Exception("User not logged in"))
+            
+            Log.d(TAG, "Getting profile for user $userId")
         
-        val userId = currentUser?.uid ?: throw Exception("User not authenticated")
-        
-        val document = driverProfilesCollection.document(userId)
-            .get()
-            .await()
-
+            val document = driverProfilesCollection.document(userId).get().await()
         if (!document.exists()) {
-            Log.d(TAG, "No existing profile found, creating new one")
-            // Create a new profile document if it doesn't exist
-            val newProfile = DriverProfile(userId = userId)
-            driverProfilesCollection.document(userId)
-                .set(newProfile)
-                .await()
-            Result.success(newProfile)
-        } else {
-            Log.d(TAG, "Found existing profile")
-            Result.success(document.toObject(DriverProfile::class.java))
-        }
+                Log.e(TAG, "No profile found for user $userId")
+                return Result.failure(Exception("Driver profile not found"))
+            }
+            
+            val profile = document.toObject(DriverProfile::class.java)
+            Log.d(TAG, "Retrieved profile availability: ${profile?.isAvailable}")
+            
+            Result.success(profile)
     } catch (e: Exception) {
-        Log.e(TAG, "Error getting profile", e)
-        e.printStackTrace()
+            Log.e(TAG, "Error getting driver profile", e)
         Result.failure(e)
+        }
     }
 
     fun getAllActiveDriverProfiles(): Flow<List<DriverProfile>> = callbackFlow {
@@ -130,6 +114,58 @@ class DriverProfileRepository private constructor() {
             Log.e(TAG, "Error getting all driver profiles", e)
             trySend(emptyList())
             close(e)
+        }
+    }
+
+    suspend fun updateDriverAvailability(isAvailable: Boolean): Result<DriverProfile> {
+        return try {
+            val currentUser = auth.currentUser
+            val userId = currentUser?.uid ?: return Result.failure(Exception("User not logged in"))
+            
+            Log.d(TAG, "Updating availability for user $userId to $isAvailable")
+            
+            // Get current profile
+            val currentProfile = getDriverProfile().getOrThrow() ?: return Result.failure(Exception("Driver profile not found"))
+            Log.d(TAG, "Current profile availability: ${currentProfile.isAvailable}")
+            
+            // Update in Firestore
+            driverProfilesCollection.document(userId)
+                .update(
+                    mapOf(
+                        "isAvailable" to isAvailable,
+                        "updatedAt" to System.currentTimeMillis()
+                    )
+                )
+                .await()
+            
+            Log.d(TAG, "Successfully updated availability in Firestore")
+            
+            // Get the updated profile
+            val updatedProfile = getDriverProfile().getOrThrow()
+            Log.d(TAG, "Updated profile availability: ${updatedProfile?.isAvailable}")
+            
+            if (updatedProfile?.isAvailable != isAvailable) {
+                Log.e(TAG, "Update verification failed: expected $isAvailable but got ${updatedProfile?.isAvailable}")
+                return Result.failure(Exception("Failed to verify availability update"))
+            }
+            
+            Result.success(updatedProfile)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating driver availability", e)
+            Result.failure(e)
+        }
+    }
+
+    companion object {
+        @Volatile
+        private var INSTANCE: DriverProfileRepository? = null
+
+        fun getInstance(): DriverProfileRepository {
+            return INSTANCE ?: synchronized(this) {
+                val instance = DriverProfileRepository()
+                INSTANCE = instance
+                instance
+            }
         }
     }
 } 
